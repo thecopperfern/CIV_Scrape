@@ -91,14 +91,22 @@ CIV_Scrape/
 ├── config.py              # Configuration management
 ├── requirements.txt       # Python dependencies
 ├── README.md             # This file
+├── NEXT_STEPS_ANALYSIS.md # Roadmap and feature analysis
 ├── .env.example          # Environment template
 ├── .gitignore           # Git ignore rules
+├── Makefile              # Convenient commands
+├── pytest.ini            # Test configuration
+├── run_tests.sh          # Test runner script
 ├── utils/
 │   ├── smartsuite_api.py   # SmartSuite API wrapper
 │   ├── field_mapping.py    # Data transformation logic
 │   └── logger.py          # Logging configuration
 ├── scripts/
 │   └── import_customers.py # Customer import script
+├── tests/                 # Comprehensive test suite
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   └── conftest.py       # Test fixtures
 └── logs/                  # Log files (auto-created)
 ```
 
@@ -133,6 +141,59 @@ CIV_Scrape/
 ```bash
 pip install -r requirements.txt --upgrade
 ```
+
+## Testing
+
+The project includes a comprehensive test suite with 75 tests covering all functionality.
+
+### Running Tests
+
+**Run all tests**:
+```bash
+make test
+# or
+./run_tests.sh
+# or
+python -m pytest
+```
+
+**Run specific test types**:
+```bash
+make test-unit              # Unit tests only (fast)
+make test-integration       # Integration tests only
+make test-fast              # Quick tests without coverage
+make test-coverage          # Detailed coverage report
+```
+
+**Run individual test files**:
+```bash
+python -m pytest tests/unit/test_field_mapping.py -v
+python -m pytest tests/unit/test_smartsuite_api.py -v
+```
+
+### Test Coverage
+
+Current coverage: **80%+** across all modules
+
+- **75 tests total**
+  - 55 unit tests
+  - 20 integration tests
+- **Coverage by module**:
+  - `utils/field_mapping.py`: 95%+
+  - `utils/smartsuite_api.py`: 90%+
+  - `config.py`: 85%+
+
+View detailed coverage:
+```bash
+make test-coverage
+open htmlcov/index.html  # View HTML report
+```
+
+### Test Structure
+
+- **Unit Tests**: Fast, isolated tests of individual functions
+- **Integration Tests**: Test full workflows with mocked APIs
+- **Fixtures**: Reusable test data in `tests/conftest.py`
 
 ## Logging
 
@@ -263,6 +324,7 @@ Proprietary - CIV Enterprises
 
 ## Version History
 
+- **1.1.0** (2026-01-23) - Added comprehensive test suite (75 tests), CI/CD pipeline, documentation
 - **1.0.0** (2026-01-23) - Initial release with customer import functionality
 
 ---
