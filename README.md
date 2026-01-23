@@ -1,118 +1,333 @@
-CIV Enterprises — Customer Intelligence & Prospecting System
+# CIV Enterprises - Customer Prospecting & Research Automation
 
-Version: 1.0
+Automated system for importing, analyzing, and researching customer prospects for CIV Enterprises promotional products business.
 
-Last Updated: January 23, 2026
+## Features
 
-## Executive Summary
+- ✅ Import existing customers from main CRM
+- ✅ Automatic priority tier calculation based on order history
+- ✅ Contact information extraction and normalization
+- 🚧 Customer pattern analysis (coming soon)
+- 🚧 Automated prospect research (coming soon)
+- 🚧 Social media scanning (coming soon)
 
-CIV Enterprises Customer Intelligence & Prospecting System automates importing, analyzing, and researching customers and prospects from the main CRM into a SmartSuite-based Customer Intelligence Hub. Phase 1 focuses on importing existing customers and classifying them to enable data-driven prospecting.
+## Setup
 
-## Product Vision
+### Prerequisites
+- Python 3.8+
+- SmartSuite account with API access
+- Git (for version control)
 
-- Analyze existing customer patterns to identify ideal client profiles
-- Discover similar businesses in target geographies
-- Automate prospect research (web, social, business signals)
-- Manage outreach with personalized pitches
+### Installation
 
-## Phases & Goals
+1. **Clone the repository**
+```bash
+git clone <your-repo-url>
+cd CIV_Scrape
+```
 
-- Phase 1 — Customer Import & Analysis (current)
-	- Import all customers from the main CRM
-	- Normalize contacts, calculate priority tiers, initial industry classification
-	- Deliverables: Python import script, populated SmartSuite hub, contact quality report
+2. **Create virtual environment**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-- Phase 2 — Customer Pattern Analysis (next)
-	- Identify top client patterns and generate Ideal Client Avatars
+3. **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
 
-- Phase 3 — Automated Prospect Research (planned)
-	- Scrape websites, discover social profiles, surface business signals
+4. **Configure environment**
+```bash
+cp .env.example .env
+```
 
-- Phase 4 — Geographic Prospect Discovery (planned)
-	- Radius-based Google Maps discovery and campaign management
+Edit `.env` and add your SmartSuite credentials:
+```bash
+SMARTSUITE_API_KEY=your_api_key_here
+SMARTSUITE_ACCOUNT_ID=your_account_id_here
+```
 
-- Phase 5 — Outreach & Campaign Management (future)
-	- Personalized pitch generation and campaign automation
+### Verify Setup
 
-## Success Metrics (high level)
+Test your configuration:
+```bash
+python -c "from config import Config; print('✓ Configuration valid')"
+```
 
-- Phase 1: 100% of existing customers imported and classified
-- Phase 2: 3–5 ideal client avatars defined
-- Phase 3: 50+ qualified prospects generated/month
-- Phase 5: 10%+ conversion on automated outreach
+## Usage
 
-## Technical Overview
+### Import Customers
 
-- Language: Python 3.8+
-- Data store: SmartSuite (via REST API)
-- Key libs: requests, python-dotenv, beautifulsoup4, lxml
+**Dry run (recommended first time):**
+```bash
+python scripts/import_customers.py --dry-run
+```
 
-Core scripts (examples)
+**Import first 10 customers (testing):**
+```bash
+python scripts/import_customers.py --limit 10
+```
 
-- import_customers.py — One-time import from main CRM
-- sync_customers.py — Regular sync
-- analyze_customers.py — Pattern analysis & avatar creation
-- research_business.py — Automated research
-- find_prospects.py — Geographic discovery
-- generate_outreach.py — Outreach & pitch generation
+**Full import:**
+```bash
+python scripts/import_customers.py
+```
 
-## SmartSuite Schema (high level)
+### Command Options
+```bash
+python scripts/import_customers.py --help
 
-- Customer Intelligence Hub — unified table for existing customers and prospects
-- Ideal Client Avatar Profiles — 3–5 archetypes
-- Research Task Queue — automated research jobs
-- Search Campaigns — geographic search configs
-- Outreach & Campaigns — campaign management and tracking
+Options:
+  --dry-run              Simulate import without creating records
+  --limit N              Import only N records (for testing)
+  --batch-size N         Records per batch (default: 25)
+```
 
-## Non-Functional Requirements
+## Project Structure
 
-- API keys in environment variables; GitHub Secrets for CI/CD
-- Rate limiting and batching for API calls
-- Retry logic with exponential backoff
-- Dry-run mode for safety and comprehensive logging
+```
+CIV_Scrape/
+├── config.py              # Configuration management
+├── requirements.txt       # Python dependencies
+├── README.md             # This file
+├── NEXT_STEPS_ANALYSIS.md # Roadmap and feature analysis
+├── .env.example          # Environment template
+├── .gitignore           # Git ignore rules
+├── Makefile              # Convenient commands
+├── pytest.ini            # Test configuration
+├── run_tests.sh          # Test runner script
+├── utils/
+│   ├── smartsuite_api.py   # SmartSuite API wrapper
+│   ├── field_mapping.py    # Data transformation logic
+│   └── logger.py          # Logging configuration
+├── scripts/
+│   └── import_customers.py # Customer import script
+├── tests/                 # Comprehensive test suite
+│   ├── unit/             # Unit tests
+│   ├── integration/      # Integration tests
+│   └── conftest.py       # Test fixtures
+└── logs/                  # Log files (auto-created)
+```
 
-## Dependencies
+## SmartSuite Schema
 
-- requests==2.31.0
-- python-dotenv==1.0.0
-- beautifulsoup4==4.12.0
-- lxml==4.9.0
+### Source: Customers Table
 
-## Quick Start (local development)
+- **Table ID**: 65fa17c1c4bf7d283e83807a
+- **Key Fields**: Company name, contacts, order count, customer type
 
-1. Clone repository
-	 ```bash
-	 git clone <repo-url>
-	 cd civ-customer-prospecting
-	 ```
-2. Create virtualenv and install
-	 ```bash
-	 python -m venv venv
-	 source venv/bin/activate
-	 pip install -r requirements.txt
-	 cp .env.example .env
-	 # Edit .env with SMARTSUITE credentials
-	 ```
-3. Dry-run import
-	 ```bash
-	 python scripts/import_customers.py --dry-run --limit 5
-	 ```
+### Destination: Customer Intelligence Hub
 
-## Deployment & Automation
+- **Table ID**: 6972e0912eaf730900141a54
+- **Purpose**: Unified customer and prospect tracking with research data
 
-- GitHub Actions: manual import, weekly sync, daily research jobs
-- Logs written to logs/ and Actions artifacts
+## Troubleshooting
 
-## Risks & Mitigations (summary)
+### API Authentication Errors
 
-- API rate limits: batch + delay
-- Data quality: validation + manual review
-- Scraping blocks: rotate user-agents + respect robots.txt
+- Verify API key in `.env`
+- Check Account ID is correct
+- Ensure API access is enabled in SmartSuite
 
-## Contact
+### Import Failures
 
-Owner: Copper Fern (CIV Enterprises)
+- Check logs in `logs/` directory
+- Run with `--dry-run` to test without creating records
+- Use `--limit 1` to test single record
+
+### Missing Dependencies
+
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+## Testing
+
+The project includes a comprehensive test suite with 75 tests covering all functionality.
+
+### Running Tests
+
+**Run all tests**:
+```bash
+make test
+# or
+./run_tests.sh
+# or
+python -m pytest
+```
+
+**Run specific test types**:
+```bash
+make test-unit              # Unit tests only (fast)
+make test-integration       # Integration tests only
+make test-fast              # Quick tests without coverage
+make test-coverage          # Detailed coverage report
+```
+
+**Run individual test files**:
+```bash
+python -m pytest tests/unit/test_field_mapping.py -v
+python -m pytest tests/unit/test_smartsuite_api.py -v
+```
+
+### Test Coverage
+
+Current coverage: **80%+** across all modules
+
+- **75 tests total**
+  - 55 unit tests
+  - 20 integration tests
+- **Coverage by module**:
+  - `utils/field_mapping.py`: 95%+
+  - `utils/smartsuite_api.py`: 90%+
+  - `config.py`: 85%+
+
+View detailed coverage:
+```bash
+make test-coverage
+open htmlcov/index.html  # View HTML report
+```
+
+### Test Structure
+
+- **Unit Tests**: Fast, isolated tests of individual functions
+- **Integration Tests**: Test full workflows with mocked APIs
+- **Fixtures**: Reusable test data in `tests/conftest.py`
+
+## Logging
+
+Logs are stored in `logs/` directory with timestamps:
+
+- **Console**: INFO level and above
+- **File**: DEBUG level (detailed)
+
+View recent logs:
+```bash
+tail -f logs/scripts_import_customers_*.log
+```
+
+## GitHub Actions
+
+The project includes automated workflows:
+
+### Manual Customer Import
+
+1. Go to **Actions** tab in GitHub
+2. Select **Import Customers (Manual)**
+3. Click **Run workflow**
+4. Configure options:
+   - **Dry run**: Test without creating records
+   - **Limit**: Number of records (0 = all)
+
+### Setting Up Secrets
+
+Add these secrets to your GitHub repository:
+
+1. Go to **Settings** → **Secrets and variables** → **Actions**
+2. Add new repository secrets:
+   - `SMARTSUITE_API_KEY`: Your SmartSuite API key
+   - `SMARTSUITE_ACCOUNT_ID`: Your SmartSuite account ID
+
+## Data Transformation
+
+### Priority Tier Calculation
+
+Records are automatically categorized based on order history:
+
+- **Tier 1 - High Value**: 5+ completed orders
+- **Tier 2 - Medium Value**: 3-4 completed orders
+- **Tier 3 - Lower Value**: 1-2 completed orders
+- **Unrated**: 0 orders or missing data
+
+### Contact Extraction
+
+The system extracts primary contact information from the contacts sub-items:
+
+- Full name
+- Email address
+- Phone number
+
+### Industry Mapping
+
+Initial industry classification based on customer type:
+
+- Company customers → "Corporate Office"
+- Wholesale → "Other" (requires manual classification)
+- Individual → "Other"
+
+**Note**: Industry classification will be enhanced with AI-based analysis in future updates.
+
+## Next Steps
+
+After successful import:
+
+1. Review imported customers in SmartSuite
+2. Manually classify industries for accuracy
+3. Run customer analysis script (coming soon)
+4. Begin prospect research automation (coming soon)
+
+## Development Roadmap
+
+### Phase 1 - Customer Import (Current)
+- ✅ Import existing customers from main CRM
+- ✅ Calculate priority tiers
+- ✅ Extract and normalize contact information
+- ✅ Initial industry classification
+
+### Phase 2 - Customer Pattern Analysis (Next)
+- 🚧 Identify top customer patterns
+- 🚧 Generate Ideal Client Avatar profiles
+- 🚧 Industry and demographic analysis
+
+### Phase 3 - Automated Prospect Research (Planned)
+- 🚧 Web scraping for business information
+- 🚧 Social media profile discovery
+- 🚧 Business signals detection
+
+### Phase 4 - Geographic Prospect Discovery (Planned)
+- 🚧 Radius-based searches from ZIP codes
+- 🚧 Google Maps integration
+- 🚧 Search campaign management
+
+### Phase 5 - Outreach & Campaign Management (Future)
+- 🚧 Personalized pitch generation
+- 🚧 Campaign automation
+- 🚧 Response tracking
+
+## API Reference
+
+### SmartSuite API
+
+- **Base URL**: https://app.smartsuite.com/api/v1
+- **Authentication**: Token-based (API Key + Account ID)
+- **Rate Limits**: Handled with exponential backoff
+- **Batch Size**: 25 records per bulk operation
+
+### Key Endpoints Used
+
+- `GET /applications/{table_id}/` - Get table schema
+- `POST /applications/{table_id}/records/list/` - List records with filtering
+- `POST /applications/{table_id}/records/` - Create records (bulk)
+
+## Support
+
+For issues or questions:
+
+1. Check logs in `logs/` directory
+2. Review [SmartSuite API documentation](https://help.smartsuite.com/en/collections/3600982-api)
+3. Contact CIV Enterprises tech team
+
+## License
+
+Proprietary - CIV Enterprises
+
+## Version History
+
+- **1.1.0** (2026-01-23) - Added comprehensive test suite (75 tests), CI/CD pipeline, documentation
+- **1.0.0** (2026-01-23) - Initial release with customer import functionality
 
 ---
 
-Document version: 1.0 — Last updated January 23, 2026
+**Built for CIV Enterprises** - Promotional Products, Signs & Custom Apparel
+Website: www.civenterprises.com
