@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/test_integration.py:*)",
+      "Bash(where:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}
