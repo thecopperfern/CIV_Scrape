@@ -8,6 +8,33 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# SmartSuite field IDs for new tracking fields
+TRACKING_FIELDS = {
+    "annual_revenue": 0,  # Will be updated manually or from QuickBooks
+    "calls_made": 0,
+    "calls_answered": 0,
+    "first_order_date": None,
+    "second_order_date": None,
+    "outreach_status": "Not Started",
+}
+
+def initialize_tracking_fields() -> Dict:
+    """
+    Initialize outreach tracking fields for new prospects
+
+    Returns:
+        Dictionary of tracking fields with defaults
+    """
+    return {
+        "annual_revenue": 0,
+        "calls_made": 0,
+        "calls_answered": 0,
+        "first_order_date": None,
+        "second_order_date": None,
+        "outreach_status": "Not Started",
+        "notes_from_outreach": create_smartdoc("")  # Empty SmartDoc
+    }
+
 def create_batch_id() -> str:
     """Create import batch ID with timestamp"""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
@@ -212,7 +239,16 @@ def transform_customer_record(source_record: Dict, batch_id: str) -> Dict:
         "lead_status": "Existing Customer",
         "lead_source": "Main CRM Import",
         "research_status": "Not Started",
-        "date_added": create_date_field(include_time=False)
+        "date_added": create_date_field(include_time=False),
+
+        # Outreach tracking fields (initialized to defaults)
+        "annual_revenue": 0,  # Will be updated manually or via CSV import
+        "calls_made": 0,
+        "calls_answered": 0,
+        "first_order_date": None,
+        "second_order_date": None,
+        "outreach_status": "Not Started",
+        "notes_from_outreach": create_smartdoc("")  # Empty SmartDoc for notes
     }
 
     # Add optional fields if present
