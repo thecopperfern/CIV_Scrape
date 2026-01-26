@@ -53,6 +53,7 @@ Automated system for importing, analyzing, and researching customer prospects fo
 - Python 3.8+
 - SmartSuite account with API access
 - Git (for version control)
+ - Node.js 18+ (for the web app)
 
 ### Installation
 
@@ -89,6 +90,38 @@ SMARTSUITE_ACCOUNT_ID=your_account_id_here
 Test your configuration:
 ```bash
 python -c "from config import Config; print('✓ Configuration valid')"
+```
+
+## Web App (React + Node)
+
+The web console lets you run every script, view job history/output, and browse SmartSuite records.
+
+### Install Node dependencies
+```bash
+npm install
+```
+
+### Run locally (two terminals)
+```bash
+# Terminal 1: API server
+npm run dev:server
+
+# Terminal 2: React UI
+npm run dev:web
+```
+
+### Build + Run (production)
+```bash
+npm run build
+npm start
+```
+
+### Required env vars (add to .env)
+```env
+ADMIN_PASSWORD=change_me
+SESSION_SECRET=change_me_too
+PYTHON_BIN=python3
+PORT=3001
 ```
 
 ## Usage

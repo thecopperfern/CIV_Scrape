@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 60% 96%;
+    --foreground: 180 30% 15%;
+
+    --card: 36 60% 98%;
+    --card-foreground: 180 30% 15%;
+
+    --popover: 36 60% 98%;
+    --popover-foreground: 180 30% 15%;
+
+    --primary: 179 37% 29%;
+    --primary-foreground: 36 60% 96%;
+
+    --secondary: 145 20% 90%;
+    --secondary-foreground: 180 30% 15%;
+
+    --muted: 36 20% 92%;
+    --muted-foreground: 180 8% 40%;
+
+    --accent: 22 65% 72%;
+    --accent-foreground: 180 30% 15%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 36 60% 96%;
+
+    --border: 30 20% 85%;
+    --input: 30 20% 85%;
+    --ring: 179 37% 29%;
+
+    --chart-1: 179 37% 29%;
+    --chart-2: 145 35% 45%;
+    --chart-3: 22 65% 72%;
+    --chart-4: 200 40% 40%;
+    --chart-5: 0 60% 50%;
+
+    --radius: 0.9rem;
+
+    --font-sans: "Manrope";
+    --font-heading: "Fraunces";
+  }
+
+  .dark {
+    --background: 180 20% 8%;
+    --foreground: 36 40% 90%;
+
+    --card: 180 18% 12%;
+    --card-foreground: 36 40% 90%;
+
+    --popover: 180 18% 12%;
+    --popover-foreground: 36 40% 90%;
+
+    --primary: 179 40% 45%;
+    --primary-foreground: 180 20% 8%;
+
+    --secondary: 180 16% 18%;
+    --secondary-foreground: 36 40% 90%;
+
+    --muted: 180 10% 18%;
+    --muted-foreground: 36 10% 70%;
+
+    --accent: 22 50% 45%;
+    --accent-foreground: 36 40% 90%;
+
+    --destructive: 0 60% 45%;
+    --destructive-foreground: 36 40% 90%;
+
+    --border: 180 12% 22%;
+    --input: 180 12% 22%;
+    --ring: 179 40% 45%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(circle at 15% 10%, hsla(22, 65%, 72%, 0.2), transparent 40%),
+      radial-gradient(circle at 90% 20%, hsla(179, 37%, 29%, 0.15), transparent 45%),
+      radial-gradient(circle at 10% 90%, hsla(145, 35%, 45%, 0.18), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-card/80 backdrop-blur border border-border/60 shadow-sm rounded-xl;
+  }
+
+  .glass-chip {
+    @apply rounded-full border border-border/60 bg-background/70 px-3 py-1 text-xs font-medium;
+  }
+
+  .status-dot {
+    @apply inline-flex h-2.5 w-2.5 rounded-full;
+  }
+}
