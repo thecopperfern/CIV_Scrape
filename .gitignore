@@ -34,6 +34,9 @@ env/
 logs/
 *.log
 
+# App data
+data/
+
 # IDE
 .vscode/
 .idea/

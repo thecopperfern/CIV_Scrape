@@ -16,6 +16,7 @@ This script performs:
 """
 import argparse
 import sys
+import logging
 from config import Config
 from utils.logger import setup_logger
 from utils.smartsuite_api import SmartSuiteAPI
@@ -26,7 +27,7 @@ from utils.field_mapping import transform_customer_record, create_batch_id, batc
 logger = setup_logger(__name__)
 
 
-def test_api_connectivity():
+def test_api_connectivity(verbose: bool = False):
     """Test 1: Verify API connectivity"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 1: API Connectivity")
@@ -46,11 +47,14 @@ def test_api_connectivity():
         return True
 
     except Exception as e:
-        logger.error(f"✗ API connectivity test failed: {e}")
+        if verbose:
+            logger.exception("✗ API connectivity test failed")
+        else:
+            logger.error(f"✗ API connectivity test failed: {e}")
         return False
 
 
-def test_field_mapping():
+def test_field_mapping(verbose: bool = False):
     """Test 2: Verify field mapping and transformation"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 2: Field Mapping & Transformation")
@@ -114,11 +118,14 @@ def test_field_mapping():
         return all_pass
 
     except Exception as e:
-        logger.error(f"✗ Field mapping test failed: {e}")
+        if verbose:
+            logger.exception("✗ Field mapping test failed")
+        else:
+            logger.error(f"✗ Field mapping test failed: {e}")
         return False
 
 
-def test_geographic_search():
+def test_geographic_search(verbose: bool = False):
     """Test 3: Verify geographic search functionality"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 3: Geographic Search")
@@ -162,11 +169,14 @@ def test_geographic_search():
         return True
 
     except Exception as e:
-        logger.error(f"✗ Geographic search test failed: {e}")
+        if verbose:
+            logger.exception("✗ Geographic search test failed")
+        else:
+            logger.error(f"✗ Geographic search test failed: {e}")
         return False
 
 
-def test_perplexity_readiness():
+def test_perplexity_readiness(verbose: bool = False):
     """Test 4: Verify Perplexity API integration readiness"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 4: Perplexity API Readiness")
@@ -190,11 +200,14 @@ def test_perplexity_readiness():
         return True
 
     except Exception as e:
-        logger.error(f"✗ Perplexity initialization failed: {e}")
+        if verbose:
+            logger.exception("✗ Perplexity initialization failed")
+        else:
+            logger.error(f"✗ Perplexity initialization failed: {e}")
         return False
 
 
-def test_merge_logic():
+def test_merge_logic(verbose: bool = False):
     """Test 5: Verify sync merge logic"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 5: Sync Merge Logic")
@@ -232,11 +245,14 @@ def test_merge_logic():
         return True
 
     except Exception as e:
-        logger.error(f"✗ Merge logic test failed: {e}")
+        if verbose:
+            logger.exception("✗ Merge logic test failed")
+        else:
+            logger.error(f"✗ Merge logic test failed: {e}")
         return False
 
 
-def test_data_quality():
+def test_data_quality(verbose: bool = False):
     """Test 6: Verify data quality constraints"""
     logger.info("\n" + "=" * 70)
     logger.info("TEST 6: Data Quality Checks")
@@ -276,7 +292,10 @@ def test_data_quality():
         return len(missing_fields) == 0
 
     except Exception as e:
-        logger.error(f"✗ Data quality test failed: {e}")
+        if verbose:
+            logger.exception("✗ Data quality test failed")
+        else:
+            logger.error(f"✗ Data quality test failed: {e}")
         return False
 
 
@@ -285,6 +304,11 @@ def main():
     parser = argparse.ArgumentParser(description="Run integration tests")
     parser.add_argument("--verbose", action="store_true", help="Verbose output")
     args = parser.parse_args()
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+        for handler in logger.handlers:
+            handler.setLevel(logging.DEBUG)
+        logger.debug("Verbose logging enabled")
 
     logger.info("=" * 70)
     logger.info("CIV ENTERPRISES - INTEGRATION TEST SUITE")
@@ -294,12 +318,12 @@ def main():
 
     # Run all tests
     tests = [
-        ("API Connectivity", test_api_connectivity),
-        ("Field Mapping", test_field_mapping),
-        ("Geographic Search", test_geographic_search),
-        ("Perplexity Readiness", test_perplexity_readiness),
-        ("Merge Logic", test_merge_logic),
-        ("Data Quality", test_data_quality),
+        ("API Connectivity", lambda: test_api_connectivity(args.verbose)),
+        ("Field Mapping", lambda: test_field_mapping(args.verbose)),
+        ("Geographic Search", lambda: test_geographic_search(args.verbose)),
+        ("Perplexity Readiness", lambda: test_perplexity_readiness(args.verbose)),
+        ("Merge Logic", lambda: test_merge_logic(args.verbose)),
+        ("Data Quality", lambda: test_data_quality(args.verbose)),
     ]
 
     results = []
