@@ -2,6 +2,7 @@
 SmartSuite API wrapper
 Provides methods for interacting with SmartSuite REST API
 """
+
 import requests
 import time
 from typing import Dict, List, Optional, Any
@@ -9,6 +10,7 @@ from config import Config
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
 
 class SmartSuiteAPI:
     """SmartSuite API client"""
@@ -18,11 +20,13 @@ class SmartSuiteAPI:
         self.account_id = account_id or Config.SMARTSUITE_ACCOUNT_ID
         self.base_url = Config.SMARTSUITE_BASE_URL
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Token {self.api_key}",
-            "Account-ID": self.account_id,
-            "Content-Type": "application/json"
-        })
+        self.session.headers.update(
+            {
+                "Authorization": f"Token {self.api_key}",
+                "Account-ID": self.account_id,
+                "Content-Type": "application/json",
+            }
+        )
 
     def _make_request(
         self,
@@ -30,7 +34,7 @@ class SmartSuiteAPI:
         endpoint: str,
         data: Dict = None,
         params: Dict = None,
-        retries: int = 3
+        retries: int = 3,
     ) -> Dict:
         """
         Make HTTP request to SmartSuite API with retry logic
@@ -53,11 +57,7 @@ class SmartSuiteAPI:
         for attempt in range(retries):
             try:
                 response = self.session.request(
-                    method=method,
-                    url=url,
-                    json=data,
-                    params=params,
-                    timeout=30
+                    method=method, url=url, json=data, params=params, timeout=30
                 )
                 response.raise_for_status()
 
@@ -69,10 +69,12 @@ class SmartSuiteAPI:
 
             except requests.exceptions.HTTPError as e:
                 logger.error(f"HTTP error on attempt {attempt + 1}: {e}")
-                logger.error(f"Response: {e.response.text if e.response else 'No response'}")
+                logger.error(
+                    f"Response: {e.response.text if e.response else 'No response'}"
+                )
 
                 if attempt < retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff
+                    wait_time = 2**attempt  # Exponential backoff
                     logger.info(f"Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
                 else:
@@ -81,7 +83,7 @@ class SmartSuiteAPI:
             except requests.exceptions.RequestException as e:
                 logger.error(f"Request error on attempt {attempt + 1}: {e}")
                 if attempt < retries - 1:
-                    time.sleep(2 ** attempt)
+                    time.sleep(2**attempt)
                 else:
                     raise
 
@@ -96,7 +98,7 @@ class SmartSuiteAPI:
         filter_dict: Dict = None,
         sort: List[Dict] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> Dict:
         """
         List records from a table with optional filtering and sorting
@@ -111,13 +113,12 @@ class SmartSuiteAPI:
         Returns:
             Response with 'items', 'total', 'offset'
         """
-        logger.debug(f"Listing records from table {table_id} (limit={limit}, offset={offset})")
+        logger.debug(
+            f"Listing records from table {table_id} (limit={limit}, offset={offset})"
+        )
 
         endpoint = f"applications/{table_id}/records/list/"
-        data = {
-            "filter": filter_dict or {},
-            "sort": sort or []
-        }
+        data = {"filter": filter_dict or {}, "sort": sort or []}
         params = {"limit": min(limit, 1000), "offset": offset}
 
         return self._make_request("POST", endpoint, data=data, params=params)
@@ -127,7 +128,7 @@ class SmartSuiteAPI:
         table_id: str,
         filter_dict: Dict = None,
         sort: List[Dict] = None,
-        batch_size: int = 100
+        batch_size: int = 100,
     ) -> List[Dict]:
         """
         Fetch ALL records from a table using pagination
@@ -152,13 +153,15 @@ class SmartSuiteAPI:
                 filter_dict=filter_dict,
                 sort=sort,
                 limit=batch_size,
-                offset=offset
+                offset=offset,
             )
 
             items = response.get("items", [])
             all_records.extend(items)
 
-            logger.info(f"Fetched {len(items)} records (total so far: {len(all_records)})")
+            logger.info(
+                f"Fetched {len(items)} records (total so far: {len(all_records)})"
+            )
 
             # Check if we have more records
             total = response.get("total", 0)
@@ -219,7 +222,7 @@ class SmartSuiteAPI:
         batch_size = 25
 
         for i in range(0, len(records), batch_size):
-            batch = records[i:i + batch_size]
+            batch = records[i : i + batch_size]
             logger.info(f"Creating batch {i//batch_size + 1} ({len(batch)} records)")
 
             created = self.create_bulk_records(table_id, batch)
@@ -232,11 +235,7 @@ class SmartSuiteAPI:
         return all_created
 
     def update_record(
-        self,
-        table_id: str,
-        record_id: str,
-        record_data: Dict,
-        partial: bool = True
+        self, table_id: str, record_id: str, record_data: Dict, partial: bool = True
     ) -> Dict:
         """
         Update a record

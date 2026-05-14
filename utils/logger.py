@@ -2,10 +2,12 @@
 Logging configuration for the application
 Creates both file and console handlers with appropriate formatting
 """
+
 import logging
 from pathlib import Path
 from datetime import datetime
 from config import Config
+
 
 def setup_logger(name: str, log_file: str = None) -> logging.Logger:
     """
@@ -27,12 +29,10 @@ def setup_logger(name: str, log_file: str = None) -> logging.Logger:
 
     # Create formatters
     detailed_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
-    simple_formatter = logging.Formatter(
-        '%(levelname)s - %(message)s'
-    )
+    simple_formatter = logging.Formatter("%(levelname)s - %(message)s")
 
     # Console handler
     console_handler = logging.StreamHandler()

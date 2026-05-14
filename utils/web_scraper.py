@@ -7,10 +7,13 @@ Uses:
 - BeautifulSoup for HTML parsing
 - Basic website analysis
 """
+
 import re
 from typing import Dict, Optional, List
+
 try:
     from bs4 import BeautifulSoup
+
     HAS_BEAUTIFULSOUP = True
 except ImportError:
     HAS_BEAUTIFULSOUP = False
@@ -42,9 +45,9 @@ class WebScraperFallback:
 
         # Phone patterns
         patterns = [
-            r'\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})',  # (123) 456-7890
-            r'\+1[-.\s]?(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})',  # +1-123-456-7890
-            r'\b(\d{3})[.-](\d{3})[.-](\d{4})\b',  # 123.456.7890
+            r"\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})",  # (123) 456-7890
+            r"\+1[-.\s]?(\d{3})[-.\s]?(\d{3})[-.\s]?(\d{4})",  # +1-123-456-7890
+            r"\b(\d{3})[.-](\d{3})[.-](\d{4})\b",  # 123.456.7890
         ]
 
         for pattern in patterns:
@@ -68,15 +71,16 @@ class WebScraperFallback:
         if not html_content:
             return []
 
-        pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
         matches = re.findall(pattern, html_content)
 
         # Filter out common non-contact emails
         filtered = [
-            email for email in matches
+            email
+            for email in matches
             if not any(
                 skip in email.lower()
-                for skip in ['noreply', 'no-reply', 'robot', 'bot', 'admin@example']
+                for skip in ["noreply", "no-reply", "robot", "bot", "admin@example"]
             )
         ]
 
@@ -97,11 +101,11 @@ class WebScraperFallback:
             return {}
 
         social_platforms = {
-            'linkedin': r'(?:https?://)?(?:www\.)?linkedin\.com/(?:company|in)/[\w\-]+',
-            'facebook': r'(?:https?://)?(?:www\.)?facebook\.com/[\w\-]+',
-            'twitter': r'(?:https?://)?(?:www\.)?(?:twitter|x)\.com/[\w\-]+',
-            'instagram': r'(?:https?://)?(?:www\.)?instagram\.com/[\w\-]+',
-            'youtube': r'(?:https?://)?(?:www\.)?youtube\.com/(?:channel|c)/[\w\-]+',
+            "linkedin": r"(?:https?://)?(?:www\.)?linkedin\.com/(?:company|in)/[\w\-]+",
+            "facebook": r"(?:https?://)?(?:www\.)?facebook\.com/[\w\-]+",
+            "twitter": r"(?:https?://)?(?:www\.)?(?:twitter|x)\.com/[\w\-]+",
+            "instagram": r"(?:https?://)?(?:www\.)?instagram\.com/[\w\-]+",
+            "youtube": r"(?:https?://)?(?:www\.)?youtube\.com/(?:channel|c)/[\w\-]+",
         }
 
         found_links = {}
@@ -129,23 +133,27 @@ class WebScraperFallback:
         info = {}
 
         # Extract company description (meta description)
-        meta_pattern = r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']\s*/>'
+        meta_pattern = (
+            r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']\s*/>'
+        )
         meta_match = re.search(meta_pattern, html_content, re.IGNORECASE)
         if meta_match:
-            info['meta_description'] = meta_match.group(1)[:200]
+            info["meta_description"] = meta_match.group(1)[:200]
 
         # Extract heading text (usually company tagline/description)
-        h1_pattern = r'<h1[^>]*>(.*?)</h1>'
+        h1_pattern = r"<h1[^>]*>(.*?)</h1>"
         h1_match = re.search(h1_pattern, html_content, re.IGNORECASE)
         if h1_match:
-            text = re.sub(r'<[^>]+>', '', h1_match.group(1)).strip()
-            info['main_heading'] = text[:200]
+            text = re.sub(r"<[^>]+>", "", h1_match.group(1)).strip()
+            info["main_heading"] = text[:200]
 
         # Look for "About" section
-        about_pattern = r'about\s+(?:us|company)["\']?\s*(?:is|:|)</?\s*([^<\n]{10,200})'
+        about_pattern = (
+            r'about\s+(?:us|company)["\']?\s*(?:is|:|)</?\s*([^<\n]{10,200})'
+        )
         about_match = re.search(about_pattern, html_content, re.IGNORECASE | re.DOTALL)
         if about_match:
-            info['about_section'] = about_match.group(1)[:200]
+            info["about_section"] = about_match.group(1)[:200]
 
         return info
 
@@ -161,14 +169,16 @@ class WebScraperFallback:
             Dictionary with extracted data
         """
         if not HAS_BEAUTIFULSOUP:
-            logger.warning("BeautifulSoup not installed. Install with: pip install beautifulsoup4")
+            logger.warning(
+                "BeautifulSoup not installed. Install with: pip install beautifulsoup4"
+            )
             return WebScraperFallback._parse_html_regex(html_content)
 
         try:
-            soup = BeautifulSoup(html_content, 'html.parser')
+            soup = BeautifulSoup(html_content, "html.parser")
 
             # Remove script and style elements
-            for script in soup(['script', 'style']):
+            for script in soup(["script", "style"]):
                 script.decompose()
 
             # Get text
@@ -176,10 +186,12 @@ class WebScraperFallback:
 
             # Basic extraction using regex on cleaned text
             result = {
-                'phone': WebScraperFallback.extract_phone_from_html(text),
-                'emails': WebScraperFallback.extract_email_from_html(text),
-                'social_links': WebScraperFallback.extract_social_links(html_content),
-                'business_info': WebScraperFallback.extract_business_info_from_html(html_content),
+                "phone": WebScraperFallback.extract_phone_from_html(text),
+                "emails": WebScraperFallback.extract_email_from_html(text),
+                "social_links": WebScraperFallback.extract_social_links(html_content),
+                "business_info": WebScraperFallback.extract_business_info_from_html(
+                    html_content
+                ),
             }
 
             return result
@@ -192,10 +204,12 @@ class WebScraperFallback:
     def _parse_html_regex(html_content: str) -> Dict:
         """Fallback regex-based HTML parsing (when BeautifulSoup unavailable)"""
         return {
-            'phone': WebScraperFallback.extract_phone_from_html(html_content),
-            'emails': WebScraperFallback.extract_email_from_html(html_content),
-            'social_links': WebScraperFallback.extract_social_links(html_content),
-            'business_info': WebScraperFallback.extract_business_info_from_html(html_content),
+            "phone": WebScraperFallback.extract_phone_from_html(html_content),
+            "emails": WebScraperFallback.extract_email_from_html(html_content),
+            "social_links": WebScraperFallback.extract_social_links(html_content),
+            "business_info": WebScraperFallback.extract_business_info_from_html(
+                html_content
+            ),
         }
 
     @staticmethod
@@ -210,9 +224,9 @@ class WebScraperFallback:
             Dictionary with contact details
         """
         return {
-            'phone': WebScraperFallback.extract_phone_from_html(html_content),
-            'emails': WebScraperFallback.extract_email_from_html(html_content),
-            'social_links': WebScraperFallback.extract_social_links(html_content),
+            "phone": WebScraperFallback.extract_phone_from_html(html_content),
+            "emails": WebScraperFallback.extract_email_from_html(html_content),
+            "social_links": WebScraperFallback.extract_social_links(html_content),
         }
 
 
@@ -252,31 +266,28 @@ class GoogleSearchFallback:
         Returns:
             Dictionary with extracted information
         """
-        info = {
-            'phone': None,
-            'website': None,
-            'emails': [],
-            'mentions': []
-        }
+        info = {"phone": None, "website": None, "emails": [], "mentions": []}
 
         for result in search_results:
             # Extract phone number
-            if not info['phone']:
-                info['phone'] = WebScraperFallback.extract_phone_from_html(result)
+            if not info["phone"]:
+                info["phone"] = WebScraperFallback.extract_phone_from_html(result)
 
             # Extract emails
             emails = WebScraperFallback.extract_email_from_html(result)
-            info['emails'].extend(emails)
+            info["emails"].extend(emails)
 
             # Extract website
-            website_match = re.search(r'(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', result)
-            if website_match and not info['website']:
-                info['website'] = website_match.group(1)
+            website_match = re.search(
+                r"(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", result
+            )
+            if website_match and not info["website"]:
+                info["website"] = website_match.group(1)
 
-            info['mentions'].append(result[:200])
+            info["mentions"].append(result[:200])
 
         # Remove duplicate emails
-        info['emails'] = list(set(info['emails']))
+        info["emails"] = list(set(info["emails"]))
 
         return info
 
@@ -302,17 +313,17 @@ class LinkedInFallback:
             Dictionary with company information
         """
         info = {
-            'employee_count': None,
-            'industry': None,
-            'description': None,
-            'website': None,
-            'headquarters': None,
-            'founded': None,
+            "employee_count": None,
+            "industry": None,
+            "description": None,
+            "website": None,
+            "headquarters": None,
+            "founded": None,
         }
 
         # Employee count patterns
         emp_patterns = [
-            r'(\d+(?:,\d{3})*)\s*(?:\+)?\s*employees?',
+            r"(\d+(?:,\d{3})*)\s*(?:\+)?\s*employees?",
             r'company size["\']?\s*[:\-]?\s*(\d+(?:,\d{3})*)',
         ]
 
@@ -320,20 +331,24 @@ class LinkedInFallback:
             match = re.search(pattern, profile_html, re.IGNORECASE)
             if match:
                 try:
-                    info['employee_count'] = int(match.group(1).replace(',', ''))
+                    info["employee_count"] = int(match.group(1).replace(",", ""))
                     break
                 except ValueError:
                     pass
 
         # Industry pattern
-        industry_match = re.search(r'industry["\']?\s*[:\-]?\s*([^<\n]+)', profile_html, re.IGNORECASE)
+        industry_match = re.search(
+            r'industry["\']?\s*[:\-]?\s*([^<\n]+)', profile_html, re.IGNORECASE
+        )
         if industry_match:
-            info['industry'] = industry_match.group(1).strip()[:100]
+            info["industry"] = industry_match.group(1).strip()[:100]
 
         # Website pattern
-        website_match = re.search(r'(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', profile_html)
+        website_match = re.search(
+            r"(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", profile_html
+        )
         if website_match:
-            info['website'] = website_match.group(1)
+            info["website"] = website_match.group(1)
 
         return info
 
@@ -356,37 +371,45 @@ class YelpFallback:
             Dictionary with business information
         """
         data = {
-            'name': None,
-            'rating': None,
-            'review_count': None,
-            'categories': [],
-            'phone': None,
-            'address': None,
-            'website': None,
-            'hours': None,
+            "name": None,
+            "rating": None,
+            "review_count": None,
+            "categories": [],
+            "phone": None,
+            "address": None,
+            "website": None,
+            "hours": None,
         }
 
         # Phone
-        data['phone'] = WebScraperFallback.extract_phone_from_html(yelp_html)
+        data["phone"] = WebScraperFallback.extract_phone_from_html(yelp_html)
 
         # Website
-        website_match = re.search(r'website["\']?\s*[:\-]?\s*(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', yelp_html, re.IGNORECASE)
+        website_match = re.search(
+            r'website["\']?\s*[:\-]?\s*(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
+            yelp_html,
+            re.IGNORECASE,
+        )
         if website_match:
-            data['website'] = website_match.group(1)
+            data["website"] = website_match.group(1)
 
         # Rating pattern (e.g., "4.5 stars")
-        rating_match = re.search(r'(\d+\.?\d*)\s*(?:out of)?\s*5?\s*stars?', yelp_html, re.IGNORECASE)
+        rating_match = re.search(
+            r"(\d+\.?\d*)\s*(?:out of)?\s*5?\s*stars?", yelp_html, re.IGNORECASE
+        )
         if rating_match:
             try:
-                data['rating'] = float(rating_match.group(1))
+                data["rating"] = float(rating_match.group(1))
             except ValueError:
                 pass
 
         # Review count
-        review_match = re.search(r'(\d+(?:,\d{3})*)\s*reviews?', yelp_html, re.IGNORECASE)
+        review_match = re.search(
+            r"(\d+(?:,\d{3})*)\s*reviews?", yelp_html, re.IGNORECASE
+        )
         if review_match:
             try:
-                data['review_count'] = int(review_match.group(1).replace(',', ''))
+                data["review_count"] = int(review_match.group(1).replace(",", ""))
             except ValueError:
                 pass
 
@@ -397,7 +420,7 @@ def create_research_fallback_from_web(
     company_name: str,
     website_html: Optional[str] = None,
     contact_page_html: Optional[str] = None,
-    search_results: Optional[List[str]] = None
+    search_results: Optional[List[str]] = None,
 ) -> Dict:
     """
     Create research data from web sources as fallback
@@ -412,16 +435,16 @@ def create_research_fallback_from_web(
         Dictionary with researched company data
     """
     result = {
-        'company_name': company_name,
-        'success': False,
-        'phone_number': None,
-        'email': None,
-        'website': None,
-        'social_links': {},
-        'business_info': {},
-        'confidence': 0.0,
-        'source': 'Web Scraping Fallback',
-        'cost_estimate': 0.0  # Free
+        "company_name": company_name,
+        "success": False,
+        "phone_number": None,
+        "email": None,
+        "website": None,
+        "social_links": {},
+        "business_info": {},
+        "confidence": 0.0,
+        "source": "Web Scraping Fallback",
+        "cost_estimate": 0.0,  # Free
     }
 
     found_fields = 0
@@ -432,31 +455,31 @@ def create_research_fallback_from_web(
         logger.debug(f"Analyzing website for {company_name}")
         website_data = WebScraperFallback.parse_html_content(website_html)
 
-        if website_data.get('phone'):
-            result['phone_number'] = website_data['phone']
+        if website_data.get("phone"):
+            result["phone_number"] = website_data["phone"]
             found_fields += 1
 
-        if website_data.get('emails'):
-            result['email'] = website_data['emails'][0]
+        if website_data.get("emails"):
+            result["email"] = website_data["emails"][0]
             found_fields += 1
 
-        if website_data.get('social_links'):
-            result['social_links'] = website_data['social_links']
+        if website_data.get("social_links"):
+            result["social_links"] = website_data["social_links"]
 
-        if website_data.get('business_info'):
-            result['business_info'] = website_data['business_info']
+        if website_data.get("business_info"):
+            result["business_info"] = website_data["business_info"]
 
     # Parse contact page if provided
     if contact_page_html:
         logger.debug(f"Analyzing contact page for {company_name}")
         contact_data = WebScraperFallback.analyze_contact_page(contact_page_html)
 
-        if contact_data.get('phone') and not result['phone_number']:
-            result['phone_number'] = contact_data['phone']
+        if contact_data.get("phone") and not result["phone_number"]:
+            result["phone_number"] = contact_data["phone"]
             found_fields += 1
 
-        if contact_data.get('emails') and not result['email']:
-            result['email'] = contact_data['emails'][0]
+        if contact_data.get("emails") and not result["email"]:
+            result["email"] = contact_data["emails"][0]
             found_fields += 1
 
     # Parse search results if provided
@@ -464,18 +487,20 @@ def create_research_fallback_from_web(
         logger.debug(f"Analyzing search results for {company_name}")
         search_data = GoogleSearchFallback.parse_search_results(search_results)
 
-        if search_data.get('phone') and not result['phone_number']:
-            result['phone_number'] = search_data['phone']
+        if search_data.get("phone") and not result["phone_number"]:
+            result["phone_number"] = search_data["phone"]
             found_fields += 1
 
-        if search_data.get('website') and not result['website']:
-            result['website'] = search_data['website']
+        if search_data.get("website") and not result["website"]:
+            result["website"] = search_data["website"]
             found_fields += 1
 
     # Calculate confidence
-    result['confidence'] = min(1.0, found_fields / total_fields)
-    result['success'] = result['confidence'] > 0.0
+    result["confidence"] = min(1.0, found_fields / total_fields)
+    result["success"] = result["confidence"] > 0.0
 
-    logger.info(f"Web scraping research for {company_name}: confidence={result['confidence']:.0%}")
+    logger.info(
+        f"Web scraping research for {company_name}: confidence={result['confidence']:.0%}"
+    )
 
     return result

@@ -11,6 +11,7 @@ Examples:
     python scripts/research_prospects.py --limit 20
     python scripts/research_prospects.py --status "Not Started"
 """
+
 import argparse
 import os
 from datetime import datetime
@@ -27,7 +28,7 @@ def research_and_update_prospect(
     api: SmartSuiteAPI,
     perplexity: PerplexityClient,
     prospect_record: dict,
-    dry_run: bool = False
+    dry_run: bool = False,
 ) -> dict:
     """
     Research a prospect and update their record
@@ -53,15 +54,13 @@ def research_and_update_prospect(
         "success": False,
         "research_data": {},
         "updated_fields": [],
-        "errors": []
+        "errors": [],
     }
 
     try:
         # Research the company
         research = perplexity.research_company(
-            company_name=company_name,
-            zipcode=zipcode,
-            search_type="comprehensive"
+            company_name=company_name, zipcode=zipcode, search_type="comprehensive"
         )
 
         if not research.get("success"):
@@ -74,7 +73,7 @@ def research_and_update_prospect(
         # Build update payload with enriched data
         update_payload = {
             "research_status": "Completed",
-            "last_researched": create_date_field(include_time=True)
+            "last_researched": create_date_field(include_time=True),
         }
 
         # Add phone number if found and not already present
@@ -83,7 +82,7 @@ def research_and_update_prospect(
                 "phone_country": "US",
                 "phone_number": research["phone_number"],
                 "phone_extension": "",
-                "phone_type": 1
+                "phone_type": 1,
             }
             update_payload["phone_number"] = [phone_obj]
             result["updated_fields"].append("phone_number")
@@ -102,7 +101,10 @@ def research_and_update_prospect(
             result["updated_fields"].append("website_url")
 
         # Add industry if not yet classified
-        if research.get("industry") and prospect_record.get("industry_business_type") == "Other":
+        if (
+            research.get("industry")
+            and prospect_record.get("industry_business_type") == "Other"
+        ):
             update_payload["industry_business_type"] = research["industry"]
             result["updated_fields"].append("industry_business_type")
 
@@ -129,7 +131,7 @@ def research_and_update_prospect(
                     table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
                     record_id=prospect_id,
                     record_data=update_payload,
-                    partial=True
+                    partial=True,
                 )
                 result["success"] = True
                 logger.info(f"✓ Researched and updated: {company_name}")
@@ -140,7 +142,9 @@ def research_and_update_prospect(
         else:
             result["success"] = True
             logger.info(f"[DRY-RUN] Would research and update: {company_name}")
-            logger.debug(f"  Would update fields: {', '.join(result['updated_fields'])}")
+            logger.debug(
+                f"  Would update fields: {', '.join(result['updated_fields'])}"
+            )
 
     except Exception as e:
         result["errors"].append(str(e))
@@ -157,18 +161,18 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simulate research without updating records"
+        help="Simulate research without updating records",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=10,
-        help="Limit number of prospects to research (default 10)"
+        help="Limit number of prospects to research (default 10)",
     )
     parser.add_argument(
         "--status",
         default="Not Started",
-        help="Only research prospects with this research status (default 'Not Started')"
+        help="Only research prospects with this research status (default 'Not Started')",
     )
     args = parser.parse_args()
 
@@ -193,27 +197,29 @@ def main():
 
     # Initialize clients
     api = SmartSuiteAPI()
-    perplexity = PerplexityClient(api_key=perplexity_api_key) if perplexity_api_key else None
+    perplexity = (
+        PerplexityClient(api_key=perplexity_api_key) if perplexity_api_key else None
+    )
 
     # Step 1: Fetch prospects needing research
     logger.info("\n[1/3] Fetching prospects from Intelligence Hub...")
     try:
         all_prospects = api.get_all_records(
-            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-            batch_size=100
+            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID, batch_size=100
         )
 
         # Filter by research status
         prospects_to_research = [
-            p for p in all_prospects
-            if p.get("research_status") == args.status
+            p for p in all_prospects if p.get("research_status") == args.status
         ]
 
         logger.info(f"✓ Retrieved {len(all_prospects)} total prospects")
-        logger.info(f"  {len(prospects_to_research)} need research (status: '{args.status}')")
+        logger.info(
+            f"  {len(prospects_to_research)} need research (status: '{args.status}')"
+        )
 
         if args.limit:
-            prospects_to_research = prospects_to_research[:args.limit]
+            prospects_to_research = prospects_to_research[: args.limit]
             logger.info(f"  Limited to {len(prospects_to_research)} for this run")
 
     except Exception as e:
@@ -241,14 +247,16 @@ def main():
 
         if dry_run:
             # In dry-run, skip actual research
-            results.append({
-                "prospect_id": prospect.get("id"),
-                "company_name": company_name,
-                "success": True,
-                "research_data": {},
-                "updated_fields": ["quick_notes", "research_status"],
-                "errors": []
-            })
+            results.append(
+                {
+                    "prospect_id": prospect.get("id"),
+                    "company_name": company_name,
+                    "success": True,
+                    "research_data": {},
+                    "updated_fields": ["quick_notes", "research_status"],
+                    "errors": [],
+                }
+            )
             successful += 1
         else:
             if not perplexity:
@@ -279,16 +287,20 @@ def main():
     errors_log = []
     for result in results:
         if result["errors"]:
-            errors_log.append({
-                "company_name": result["company_name"],
-                "errors": result["errors"],
-                "research_data": result.get("research_data", {})
-            })
+            errors_log.append(
+                {
+                    "company_name": result["company_name"],
+                    "errors": result["errors"],
+                    "research_data": result.get("research_data", {}),
+                }
+            )
 
     if errors_log:
         logger.warning(f"\n⚠ {len(errors_log)} prospects had errors:")
         for error_entry in errors_log[:5]:
-            logger.warning(f"  - {error_entry['company_name']}: {', '.join(error_entry['errors'])}")
+            logger.warning(
+                f"  - {error_entry['company_name']}: {', '.join(error_entry['errors'])}"
+            )
         if len(errors_log) > 5:
             logger.warning(f"  ... and {len(errors_log) - 5} more")
 
@@ -302,7 +314,7 @@ def main():
     logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 70)
 
-    print(f"RESULT_JSON {{\"prospects_found\": 0, \"enrichments_done\": {successful}}}")
+    print(f'RESULT_JSON {{"prospects_found": 0, "enrichments_done": {successful}}}')
     return 0 if failed == 0 else 1
 
 

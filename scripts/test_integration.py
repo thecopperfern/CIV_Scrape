@@ -14,6 +14,7 @@ This script performs:
 3. Research test (dry-run) - Verify Perplexity integration readiness
 4. Data quality check - Verify transformed data structure
 """
+
 import argparse
 import sys
 import logging
@@ -22,7 +23,11 @@ from utils.logger import setup_logger
 from utils.smartsuite_api import SmartSuiteAPI
 from utils.geographic_search import GeographicProspectFinder
 from utils.perplexity_client import PerplexityClient
-from utils.field_mapping import transform_customer_record, create_batch_id, batch_transform_records
+from utils.field_mapping import (
+    transform_customer_record,
+    create_batch_id,
+    batch_transform_records,
+)
 
 logger = setup_logger(__name__)
 
@@ -39,8 +44,7 @@ def test_api_connectivity(verbose: bool = False):
 
         # Try to fetch a small sample
         records = api.get_all_records(
-            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-            batch_size=1
+            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID, batch_size=1
         )
         logger.info(f"✓ Successfully connected to Intelligence Hub")
         logger.info(f"  Table has {len(records)} records total")
@@ -76,10 +80,12 @@ def test_field_mapping(verbose: bool = False):
                     {
                         "sd4f0d01f0": {"sys_root": "John Doe"},
                         "s080dbe686": ["john@example.com"],
-                        "s8e9b74ad0": [{"phone_number": "555-1234", "phone_country": "US"}]
+                        "s8e9b74ad0": [
+                            {"phone_number": "555-1234", "phone_country": "US"}
+                        ],
                     }
-                ]
-            }
+                ],
+            },
         }
 
         batch_id = create_batch_id()
@@ -91,7 +97,7 @@ def test_field_mapping(verbose: bool = False):
             ("contact_name", "John Doe"),
             ("number_of_jobs", "5"),
             ("priority_tier", "Tier 2 - Medium Value"),
-            ("record_type", "Existing Customer")
+            ("record_type", "Existing Customer"),
         ]
 
         all_pass = True
@@ -105,8 +111,12 @@ def test_field_mapping(verbose: bool = False):
 
         # Verify new tracking fields exist
         tracking_fields = [
-            "annual_revenue", "calls_made", "calls_answered",
-            "first_order_date", "second_order_date", "outreach_status"
+            "annual_revenue",
+            "calls_made",
+            "calls_answered",
+            "first_order_date",
+            "second_order_date",
+            "outreach_status",
         ]
         for field in tracking_fields:
             if field in transformed:
@@ -136,29 +146,33 @@ def test_geographic_search(verbose: bool = False):
 
         # Test 1: Search by radius
         prospects = finder.search_by_radius(
-            center_zipcode="19505",
-            radius_miles=20,
-            limit=5
+            center_zipcode="19505", radius_miles=20, limit=5
         )
         logger.info(f"✓ Geographic search returned {len(prospects)} prospects")
 
         if prospects:
             sample = prospects[0]
-            required_fields = ["name", "category", "phone", "address", "zipcode", "distance_miles"]
+            required_fields = [
+                "name",
+                "category",
+                "phone",
+                "address",
+                "zipcode",
+                "distance_miles",
+            ]
             for field in required_fields:
                 if field in sample:
                     logger.info(f"  ✓ Contains {field}")
                 else:
                     logger.error(f"  ✗ Missing {field}")
         else:
-            logger.warning("  ⚠ No prospects returned (expected for MVP with sample data)")
+            logger.warning(
+                "  ⚠ No prospects returned (expected for MVP with sample data)"
+            )
 
         # Test 2: Search by category
         dental_prospects = finder.search_by_category(
-            center_zipcode="19505",
-            category="Dentist Office",
-            radius_miles=20,
-            limit=5
+            center_zipcode="19505", category="Dentist Office", radius_miles=20, limit=5
         )
         logger.info(f"✓ Category filter found {len(dental_prospects)} Dentist Offices")
 
@@ -183,6 +197,7 @@ def test_perplexity_readiness(verbose: bool = False):
     logger.info("=" * 70)
 
     import os
+
     perplexity_key = os.getenv("PERPLEXITY_API_KEY")
 
     if not perplexity_key:
@@ -261,8 +276,7 @@ def test_data_quality(verbose: bool = False):
     try:
         api = SmartSuiteAPI()
         records = api.get_all_records(
-            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-            batch_size=10
+            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID, batch_size=10
         )
 
         if not records:
@@ -270,7 +284,12 @@ def test_data_quality(verbose: bool = False):
             return True
 
         sample_record = records[0]
-        required_fields = ["company_name", "record_type", "lead_status", "research_status"]
+        required_fields = [
+            "company_name",
+            "record_type",
+            "lead_status",
+            "research_status",
+        ]
         missing_fields = []
 
         for field in required_fields:
@@ -355,12 +374,16 @@ def main():
         logger.info("\n✓ All integration tests passed!")
         logger.info("\nNext steps for Day 4:")
         logger.info("  1. python scripts/sync_customers.py --dry-run --limit 10")
-        logger.info("  2. python scripts/find_prospects_geographic.py --limit 20 --dry-run")
+        logger.info(
+            "  2. python scripts/find_prospects_geographic.py --limit 20 --dry-run"
+        )
         logger.info("  3. python scripts/research_prospects.py --dry-run --limit 5")
         logger.info("  4. Review results and prepare for live testing")
         return 0
     else:
-        logger.error(f"\n✗ {total - passed} tests failed. Fix issues before proceeding.")
+        logger.error(
+            f"\n✗ {total - passed} tests failed. Fix issues before proceeding."
+        )
         return 1
 
 

@@ -9,6 +9,7 @@ Uses free data sources:
 
 MVP approach: Simple web scraping + manual data sources
 """
+
 import math
 from typing import List, Dict, Optional
 from utils.logger import setup_logger
@@ -39,8 +40,11 @@ class ZIPCodeDistance:
         delta_lat = math.radians(lat2 - lat1)
         delta_lon = math.radians(lon2 - lon1)
 
-        a = math.sin(delta_lat/2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon/2)**2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+        a = (
+            math.sin(delta_lat / 2) ** 2
+            + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
+        )
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         distance = R * c
 
         return distance
@@ -64,7 +68,7 @@ class GeographicProspectFinder:
                 "phone": "610-555-0101",
                 "website": "kd-dental.com",
                 "address": "123 Main St, Kutztown, PA 19530",
-                "zipcode": "19530"
+                "zipcode": "19530",
             },
             {
                 "name": "Reading Medical Center",
@@ -72,7 +76,7 @@ class GeographicProspectFinder:
                 "phone": "610-555-0102",
                 "website": None,
                 "address": "456 Hospital Drive, Reading, PA 19601",
-                "zipcode": "19601"
+                "zipcode": "19601",
             },
             {
                 "name": "Berks Construction",
@@ -80,7 +84,7 @@ class GeographicProspectFinder:
                 "phone": "610-555-0103",
                 "website": "berksconstruction.com",
                 "address": "789 Industrial Blvd, Wyomissing, PA 19610",
-                "zipcode": "19610"
+                "zipcode": "19610",
             },
             {
                 "name": "Exeter Corporate Office",
@@ -88,7 +92,7 @@ class GeographicProspectFinder:
                 "phone": "610-555-0104",
                 "website": "exeter-corp.com",
                 "address": "321 Business Pk, Exeter Township, PA 19606",
-                "zipcode": "19606"
+                "zipcode": "19606",
             },
             {
                 "name": "Maidencreek Dental",
@@ -96,8 +100,8 @@ class GeographicProspectFinder:
                 "phone": "610-555-0105",
                 "website": None,
                 "address": "654 Route 422, Maidencreek, PA 19567",
-                "zipcode": "19567"
-            }
+                "zipcode": "19567",
+            },
         ]
     }
 
@@ -109,7 +113,7 @@ class GeographicProspectFinder:
         center_zipcode: str,
         radius_miles: float = 20,
         categories: Optional[List[str]] = None,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[Dict]:
         """
         Search for businesses within radius of ZIP code
@@ -132,7 +136,7 @@ class GeographicProspectFinder:
                 "Construction/Contractor",
                 "Corporate Office",
                 "Manufacturing",
-                "Retail"
+                "Retail",
             ]
 
         # Get center coordinates
@@ -160,8 +164,7 @@ class GeographicProspectFinder:
                         continue
                 else:
                     distance = ZIPCodeDistance.lat_lon_distance(
-                        center_coords[0], center_coords[1],
-                        biz_coords[0], biz_coords[1]
+                        center_coords[0], center_coords[1], biz_coords[0], biz_coords[1]
                     )
 
                 # Check if within radius
@@ -173,7 +176,7 @@ class GeographicProspectFinder:
                         results.append(business_copy)
 
         # Sort by distance
-        results.sort(key=lambda x: x.get("distance_miles", float('inf')))
+        results.sort(key=lambda x: x.get("distance_miles", float("inf")))
 
         # Apply limit
         results = results[:limit]
@@ -186,7 +189,7 @@ class GeographicProspectFinder:
         center_zipcode: str,
         category: str,
         radius_miles: float = 20,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[Dict]:
         """
         Search for specific business category within radius
@@ -204,7 +207,7 @@ class GeographicProspectFinder:
             center_zipcode=center_zipcode,
             radius_miles=radius_miles,
             categories=[category],
-            limit=limit
+            limit=limit,
         )
 
     def get_common_categories(self) -> List[str]:
@@ -224,5 +227,5 @@ class GeographicProspectFinder:
             "Education",
             "Gym/Fitness",
             "Salon/Spa",
-            "Auto Services"
+            "Auto Services",
         ]

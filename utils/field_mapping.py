@@ -2,6 +2,7 @@
 Field mapping and transformation logic
 Converts data from main Customers table to Customer Intelligence Hub format
 """
+
 from datetime import datetime, timezone
 from typing import Dict, Optional, Tuple, Any
 from utils.logger import setup_logger
@@ -18,6 +19,7 @@ TRACKING_FIELDS = {
     "outreach_status": "Not Started",
 }
 
+
 def initialize_tracking_fields() -> Dict:
     """
     Initialize outreach tracking fields for new prospects
@@ -32,20 +34,20 @@ def initialize_tracking_fields() -> Dict:
         "first_order_date": None,
         "second_order_date": None,
         "outreach_status": "Not Started",
-        "notes_from_outreach": create_smartdoc("")  # Empty SmartDoc
+        "notes_from_outreach": create_smartdoc(""),  # Empty SmartDoc
     }
+
 
 def create_batch_id() -> str:
     """Create import batch ID with timestamp"""
     return datetime.now(timezone.utc).strftime("%Y-%m-%d-%H%M%S")
 
+
 def create_date_field(include_time: bool = False) -> Dict:
     """Create SmartSuite date object"""
     now = datetime.now(timezone.utc)
-    return {
-        "date": now.isoformat(),
-        "include_time": include_time
-    }
+    return {"date": now.isoformat(), "include_time": include_time}
+
 
 def create_smartdoc(text: str) -> Dict:
     """
@@ -58,30 +60,19 @@ def create_smartdoc(text: str) -> Dict:
         SmartDoc object with data, html, and preview
     """
     if not text:
-        return {
-            "data": {"type": "doc", "content": []},
-            "html": "",
-            "preview": ""
-        }
+        return {"data": {"type": "doc", "content": []}, "html": "", "preview": ""}
 
     return {
         "data": {
             "type": "doc",
             "content": [
-                {
-                    "type": "paragraph",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": text
-                        }
-                    ]
-                }
-            ]
+                {"type": "paragraph", "content": [{"type": "text", "text": text}]}
+            ],
         },
         "html": f"<p>{text}</p>",
-        "preview": text[:200]  # First 200 chars
+        "preview": text[:200],  # First 200 chars
     }
+
 
 def calculate_priority_tier(num_jobs: int) -> str:
     """
@@ -102,7 +93,10 @@ def calculate_priority_tier(num_jobs: int) -> str:
     else:
         return "Unrated"
 
-def extract_primary_contact(contacts_field: Dict) -> Tuple[Optional[str], Optional[str], Optional[list]]:
+
+def extract_primary_contact(
+    contacts_field: Dict,
+) -> Tuple[Optional[str], Optional[str], Optional[list]]:
     """
     Extract first contact from sub-items array
 
@@ -141,15 +135,18 @@ def extract_primary_contact(contacts_field: Dict) -> Tuple[Optional[str], Option
     phone_number = None
     if phones:
         phone_obj = phones[0]
-        phone_number = [{
-            "phone_country": phone_obj.get("phone_country", "US"),
-            "phone_number": phone_obj.get("phone_number", ""),
-            "phone_extension": phone_obj.get("phone_extension", ""),
-            "phone_type": phone_obj.get("phone_type", 1)
-        }]
+        phone_number = [
+            {
+                "phone_country": phone_obj.get("phone_country", "US"),
+                "phone_number": phone_obj.get("phone_number", ""),
+                "phone_extension": phone_obj.get("phone_extension", ""),
+                "phone_type": phone_obj.get("phone_type", 1),
+            }
+        ]
 
     logger.debug(f"Extracted contact: {contact_name}, {email}")
     return contact_name, email, phone_number
+
 
 def map_industry(customer_type: str, retail_category: str = None) -> str:
     """
@@ -183,6 +180,7 @@ def map_industry(customer_type: str, retail_category: str = None) -> str:
         return "Other"
     else:
         return "Other"
+
 
 def transform_customer_record(source_record: Dict, batch_id: str) -> Dict:
     """
@@ -240,7 +238,6 @@ def transform_customer_record(source_record: Dict, batch_id: str) -> Dict:
         "lead_source": "Main CRM Import",
         "research_status": "Not Started",
         "date_added": create_date_field(include_time=False),
-
         # Outreach tracking fields (initialized to defaults)
         "annual_revenue": 0,  # Will be updated manually or via CSV import
         "calls_made": 0,
@@ -248,7 +245,7 @@ def transform_customer_record(source_record: Dict, batch_id: str) -> Dict:
         "first_order_date": None,
         "second_order_date": None,
         "outreach_status": "Not Started",
-        "notes_from_outreach": create_smartdoc("")  # Empty SmartDoc for notes
+        "notes_from_outreach": create_smartdoc(""),  # Empty SmartDoc for notes
     }
 
     # Add optional fields if present
@@ -261,8 +258,11 @@ def transform_customer_record(source_record: Dict, batch_id: str) -> Dict:
         all_emails = list(set([email] + followup_emails if email else followup_emails))
         transformed["email"] = all_emails
 
-    logger.debug(f"Transformed to: {transformed.get('company_name')} (Tier: {priority_tier})")
+    logger.debug(
+        f"Transformed to: {transformed.get('company_name')} (Tier: {priority_tier})"
+    )
     return transformed
+
 
 def batch_transform_records(source_records: list, batch_id: str) -> list:
     """
@@ -289,7 +289,9 @@ def batch_transform_records(source_records: list, batch_id: str) -> list:
             logger.error(f"Error transforming record {i} ({company_name}): {e}")
             errors.append((i, company_name, str(e)))
 
-    logger.info(f"Successfully transformed {len(transformed)}/{len(source_records)} records")
+    logger.info(
+        f"Successfully transformed {len(transformed)}/{len(source_records)} records"
+    )
     if errors:
         logger.warning(f"Failed to transform {len(errors)} records")
         for idx, name, error in errors:

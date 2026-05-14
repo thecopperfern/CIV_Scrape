@@ -2,6 +2,7 @@
 Perplexity API client for business research
 Provides affordable research (~$0.01 per query, up to $5/month budget)
 """
+
 import json
 import time
 from typing import Dict, Optional, List
@@ -30,10 +31,9 @@ class PerplexityClient:
         self.base_url = "https://api.perplexity.ai"
         self.model = "pplx-7b-online"  # Cheapest model with web search
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        })
+        self.session.headers.update(
+            {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        )
 
         logger.info("Perplexity client initialized")
 
@@ -41,7 +41,7 @@ class PerplexityClient:
         self,
         company_name: str,
         zipcode: Optional[str] = None,
-        search_type: str = "comprehensive"
+        search_type: str = "comprehensive",
     ) -> Dict:
         """
         Research a company using Perplexity API
@@ -86,7 +86,7 @@ class PerplexityClient:
             "address": None,
             "confidence": 0.0,
             "research_time": 0.0,
-            "cost_estimate": 0.01  # Rough estimate
+            "cost_estimate": 0.01,  # Rough estimate
         }
 
         try:
@@ -108,16 +108,11 @@ class PerplexityClient:
                 f"{self.base_url}/chat/completions",
                 json={
                     "model": self.model,
-                    "messages": [
-                        {
-                            "role": "user",
-                            "content": query
-                        }
-                    ],
+                    "messages": [{"role": "user", "content": query}],
                     "max_tokens": 500,
-                    "temperature": 0.1  # Low temp for factual results
+                    "temperature": 0.1,  # Low temp for factual results
                 },
-                timeout=30
+                timeout=30,
             )
 
             response.raise_for_status()
@@ -130,18 +125,24 @@ class PerplexityClient:
                 result["raw_research"] = research_text
 
                 # Parse results
-                result.update(self._parse_research_response(research_text, company_name))
+                result.update(
+                    self._parse_research_response(research_text, company_name)
+                )
 
                 # Estimate confidence based on what was found
-                found_fields = sum([
-                    result.get("phone_number") is not None,
-                    result.get("email") is not None,
-                    result.get("website") is not None,
-                    result.get("industry") is not None,
-                ])
+                found_fields = sum(
+                    [
+                        result.get("phone_number") is not None,
+                        result.get("email") is not None,
+                        result.get("website") is not None,
+                        result.get("industry") is not None,
+                    ]
+                )
                 result["confidence"] = min(1.0, found_fields / 4.0)
 
-                logger.info(f"✓ Researched: {company_name} (confidence: {result['confidence']:.1%})")
+                logger.info(
+                    f"✓ Researched: {company_name} (confidence: {result['confidence']:.1%})"
+                )
 
             else:
                 logger.warning(f"Invalid Perplexity response structure: {data}")
@@ -182,9 +183,10 @@ class PerplexityClient:
 
         # Extract phone number (basic pattern: XXX-XXX-XXXX or (XXX) XXX-XXXX)
         import re
+
         phone_patterns = [
-            r'\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})',
-            r'\+1\s?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})'
+            r"\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})",
+            r"\+1\s?\(?(\d{3})\)?[-.\s]?(\d{3})[-.\s]?(\d{4})",
         ]
         for pattern in phone_patterns:
             match = re.search(pattern, text)
@@ -193,20 +195,20 @@ class PerplexityClient:
                 break
 
         # Extract email
-        email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+        email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
         email_match = re.search(email_pattern, text)
         if email_match:
             parsed["email"] = email_match.group(0)
 
         # Extract website
-        website_pattern = r'(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
+        website_pattern = r"(?:https?://)?(?:www\.)?([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"
         website_match = re.search(website_pattern, text)
         if website_match:
             parsed["website"] = website_match.group(1)
 
         # Extract employee count
         if "employee" in text_lower:
-            emp_pattern = r'(\d{1,}(?:,\d{3})*)\s+employees?'
+            emp_pattern = r"(\d{1,}(?:,\d{3})*)\s+employees?"
             emp_match = re.search(emp_pattern, text)
             if emp_match:
                 try:
@@ -271,11 +273,7 @@ class PerplexityClient:
 
         return parsed
 
-    def batch_research(
-        self,
-        companies: List[Dict],
-        delay: float = 1.0
-    ) -> List[Dict]:
+    def batch_research(self, companies: List[Dict], delay: float = 1.0) -> List[Dict]:
         """
         Research multiple companies with delay to avoid rate limiting
 
@@ -289,12 +287,14 @@ class PerplexityClient:
         results = []
 
         for i, company in enumerate(companies, 1):
-            logger.info(f"[{i}/{len(companies)}] Researching {company.get('name', 'Unknown')}...")
+            logger.info(
+                f"[{i}/{len(companies)}] Researching {company.get('name', 'Unknown')}..."
+            )
 
             result = self.research_company(
                 company_name=company.get("name"),
                 zipcode=company.get("zipcode"),
-                search_type="comprehensive"
+                search_type="comprehensive",
             )
 
             results.append(result)

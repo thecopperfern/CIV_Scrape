@@ -11,6 +11,7 @@ Examples:
     python scripts/find_prospects_geographic.py --radius 25 --categories "Dentist Office,Medical/Healthcare Office"
     python scripts/find_prospects_geographic.py --limit 100
 """
+
 import argparse
 import csv
 import os
@@ -19,13 +20,20 @@ from difflib import SequenceMatcher
 from config import Config
 from utils.geographic_search import GeographicProspectFinder
 from utils.smartsuite_api import SmartSuiteAPI
-from utils.field_mapping import create_batch_id, create_date_field, create_smartdoc, calculate_priority_tier
+from utils.field_mapping import (
+    create_batch_id,
+    create_date_field,
+    create_smartdoc,
+    calculate_priority_tier,
+)
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-def fuzzy_match_prospect(source_name: str, existing_name: str, threshold: float = 0.8) -> bool:
+def fuzzy_match_prospect(
+    source_name: str, existing_name: str, threshold: float = 0.8
+) -> bool:
     """
     Fuzzy match business names to detect if they're the same
 
@@ -49,18 +57,30 @@ def fuzzy_match_prospect(source_name: str, existing_name: str, threshold: float 
         return True
 
     # Remove common suffixes
-    for suffix in [" llc", " inc", " corp", " ltd", " co", " company", " office", " clinic", " dental"]:
+    for suffix in [
+        " llc",
+        " inc",
+        " corp",
+        " ltd",
+        " co",
+        " company",
+        " office",
+        " clinic",
+        " dental",
+    ]:
         if src.endswith(suffix):
-            src = src[:-len(suffix)].strip()
+            src = src[: -len(suffix)].strip()
         if dst.endswith(suffix):
-            dst = dst[:-len(suffix)].strip()
+            dst = dst[: -len(suffix)].strip()
 
     # Calculate similarity
     similarity = SequenceMatcher(None, src, dst).ratio()
     return similarity >= threshold
 
 
-def transform_geographic_prospect(prospect_data: dict, batch_id: str, source: str = "Geographic Search") -> dict:
+def transform_geographic_prospect(
+    prospect_data: dict, batch_id: str, source: str = "Geographic Search"
+) -> dict:
     """
     Transform geographic search result to Intelligence Hub format
 
@@ -96,7 +116,7 @@ def transform_geographic_prospect(prospect_data: dict, batch_id: str, source: st
         "Education": "Education",
         "Gym/Fitness": "Gym/Fitness",
         "Salon/Spa": "Salon/Spa",
-        "Auto Services": "Auto Services"
+        "Auto Services": "Auto Services",
     }
 
     industry = industry_mapping.get(category, "Other")
@@ -104,12 +124,14 @@ def transform_geographic_prospect(prospect_data: dict, batch_id: str, source: st
     # Format phone number if present
     phone_array = []
     if phone:
-        phone_array = [{
-            "phone_country": "US",
-            "phone_number": phone,
-            "phone_extension": "",
-            "phone_type": 1
-        }]
+        phone_array = [
+            {
+                "phone_country": "US",
+                "phone_number": phone,
+                "phone_extension": "",
+                "phone_type": 1,
+            }
+        ]
 
     # Format website
     website_url = ""
@@ -156,7 +178,7 @@ This prospect was discovered through geographic radius search and needs manual r
         "outreach_status": "Not Started",
         "quick_notes": create_smartdoc(discovery_notes),
         "notes_from_outreach": create_smartdoc(""),
-        "zipcode": zipcode
+        "zipcode": zipcode,
     }
 
     return transformed
@@ -168,35 +190,25 @@ def main():
         description="Find business prospects within geographic radius"
     )
     parser.add_argument(
-        "--zipcode",
-        default="19505",
-        help="Center ZIP code (default 19505)"
+        "--zipcode", default="19505", help="Center ZIP code (default 19505)"
     )
     parser.add_argument(
-        "--radius",
-        type=float,
-        default=20,
-        help="Search radius in miles (default 20)"
+        "--radius", type=float, default=20, help="Search radius in miles (default 20)"
     )
     parser.add_argument(
         "--categories",
-        help="Comma-separated list of categories (e.g., 'Dentist Office,Medical/Healthcare Office')"
+        help="Comma-separated list of categories (e.g., 'Dentist Office,Medical/Healthcare Office')",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=50,
-        help="Limit number of prospects to find (default 50)"
+        help="Limit number of prospects to find (default 50)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview results without importing"
+        "--dry-run", action="store_true", help="Preview results without importing"
     )
-    parser.add_argument(
-        "--output-csv",
-        help="Save results to CSV file"
-    )
+    parser.add_argument("--output-csv", help="Save results to CSV file")
     args = parser.parse_args()
 
     dry_run = args.dry_run or Config.DRY_RUN
@@ -218,20 +230,24 @@ def main():
         categories = [c.strip() for c in args.categories.split(",")]
 
     # Step 1: Geographic search
-    logger.info(f"\n[1/3] Searching for prospects within {args.radius} miles of {args.zipcode}...")
+    logger.info(
+        f"\n[1/3] Searching for prospects within {args.radius} miles of {args.zipcode}..."
+    )
 
     finder = GeographicProspectFinder()
     prospects = finder.search_by_radius(
         center_zipcode=args.zipcode,
         radius_miles=args.radius,
         categories=categories,
-        limit=args.limit
+        limit=args.limit,
     )
 
     logger.info(f"✓ Found {len(prospects)} prospects")
 
     if not prospects:
-        logger.info("No prospects found. Try adjusting ZIP code, radius, or categories.")
+        logger.info(
+            "No prospects found. Try adjusting ZIP code, radius, or categories."
+        )
         return 0
 
     # Step 2: Deduplicate against existing records
@@ -239,8 +255,7 @@ def main():
 
     api = SmartSuiteAPI()
     existing_records = api.get_all_records(
-        table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-        batch_size=100
+        table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID, batch_size=100
     )
     existing_names = [r.get("company_name", "") for r in existing_records]
 
@@ -286,7 +301,7 @@ def main():
     if args.output_csv:
         logger.info(f"\nSaving to CSV: {args.output_csv}")
         try:
-            with open(args.output_csv, 'w', newline='', encoding='utf-8') as f:
+            with open(args.output_csv, "w", newline="", encoding="utf-8") as f:
                 if transformed:
                     writer = csv.DictWriter(f, fieldnames=transformed[0].keys())
                     writer.writeheader()
@@ -299,7 +314,9 @@ def main():
     if dry_run:
         logger.info("\n[DRY-RUN] Would import the following prospects:")
         for prospect in transformed[:5]:
-            logger.info(f"  - {prospect['company_name']} ({prospect['industry_business_type']})")
+            logger.info(
+                f"  - {prospect['company_name']} ({prospect['industry_business_type']})"
+            )
         if len(transformed) > 5:
             logger.info(f"  ... and {len(transformed) - 5} more")
     else:
@@ -311,10 +328,12 @@ def main():
             try:
                 api.create_record(
                     table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-                    record_data=prospect
+                    record_data=prospect,
                 )
                 imported += 1
-                logger.debug(f"[{i}/{len(transformed)}] Imported: {prospect['company_name']}")
+                logger.debug(
+                    f"[{i}/{len(transformed)}] Imported: {prospect['company_name']}"
+                )
             except Exception as e:
                 failed += 1
                 logger.error(f"Failed to import {prospect['company_name']}: {e}")
@@ -334,12 +353,16 @@ def main():
     logger.info("=" * 70)
     logger.info(f"\nNext steps:")
     logger.info(f"  1. Review imported prospects in Intelligence Hub")
-    logger.info(f"  2. Run: python scripts/research_prospects.py --limit {min(20, len(deduplicated))}")
+    logger.info(
+        f"  2. Run: python scripts/research_prospects.py --limit {min(20, len(deduplicated))}"
+    )
     logger.info(f"  3. Review research quality")
     logger.info(f"  4. Start outreach campaigns")
     logger.info("=" * 70)
 
-    print(f"RESULT_JSON {{\"prospects_found\": {len(deduplicated)}, \"enrichments_done\": 0}}")
+    print(
+        f'RESULT_JSON {{"prospects_found": {len(deduplicated)}, "enrichments_done": 0}}'
+    )
     return 0
 
 
