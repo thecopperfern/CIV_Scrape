@@ -12,18 +12,25 @@ Examples:
     python scripts/sync_customers.py --limit 10
     python scripts/sync_customers.py
 """
+
 import argparse
 from datetime import datetime
 from difflib import SequenceMatcher
 from config import Config
 from utils.smartsuite_api import SmartSuiteAPI
-from utils.field_mapping import create_batch_id, batch_transform_records, create_date_field
+from utils.field_mapping import (
+    create_batch_id,
+    batch_transform_records,
+    create_date_field,
+)
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-def fuzzy_match_company(source_name: str, existing_name: str, threshold: float = 0.8) -> bool:
+def fuzzy_match_company(
+    source_name: str, existing_name: str, threshold: float = 0.8
+) -> bool:
     """
     Fuzzy match company names to detect if they're the same
 
@@ -47,11 +54,20 @@ def fuzzy_match_company(source_name: str, existing_name: str, threshold: float =
         return True
 
     # Remove common suffixes
-    for suffix in [" llc", " inc", " corp", " ltd", " co", " company", " office", " clinic"]:
+    for suffix in [
+        " llc",
+        " inc",
+        " corp",
+        " ltd",
+        " co",
+        " company",
+        " office",
+        " clinic",
+    ]:
         if src.endswith(suffix):
-            src = src[:-len(suffix)].strip()
+            src = src[: -len(suffix)].strip()
         if dst.endswith(suffix):
-            dst = dst[:-len(suffix)].strip()
+            dst = dst[: -len(suffix)].strip()
 
     # Calculate similarity
     similarity = SequenceMatcher(None, src, dst).ratio()
@@ -79,22 +95,14 @@ def determine_merge_action(field_name: str, source_value, existing_value) -> tup
         "calls_made",
         "calls_answered",
         "first_order_date",
-        "second_order_date"
+        "second_order_date",
     }
 
     # Always update these
-    update_fields = {
-        "number_of_jobs",
-        "completed_orders",
-        "priority_tier"
-    }
+    update_fields = {"number_of_jobs", "completed_orders", "priority_tier"}
 
     # Merge fields (combine rather than replace)
-    merge_fields = {
-        "email",
-        "phone_number",
-        "contact_name"
-    }
+    merge_fields = {"email", "phone_number", "contact_name"}
 
     # Decision logic
     if field_name in preserve_fields:
@@ -109,7 +117,9 @@ def determine_merge_action(field_name: str, source_value, existing_value) -> tup
 
     if field_name in update_fields:
         # Update if source is better (higher number)
-        if isinstance(source_value, (int, float)) and isinstance(existing_value, (int, float)):
+        if isinstance(source_value, (int, float)) and isinstance(
+            existing_value, (int, float)
+        ):
             if source_value > existing_value:
                 return ("UPDATE", source_value)
             else:
@@ -158,14 +168,16 @@ def sync_record(source_record: dict, existing_record: dict) -> tuple:
         "email": "email",
         "phone_number": "phone_number",
         "website_url": "website_url",
-        "industry_business_type": "industry_business_type"
+        "industry_business_type": "industry_business_type",
     }
 
     for source_field, dest_field in sync_fields.items():
         source_value = source_record.get(source_field)
         existing_value = existing_record.get(dest_field)
 
-        action, new_value = determine_merge_action(dest_field, source_value, existing_value)
+        action, new_value = determine_merge_action(
+            dest_field, source_value, existing_value
+        )
 
         if action == "UPDATE":
             if new_value != existing_value:
@@ -173,13 +185,17 @@ def sync_record(source_record: dict, existing_record: dict) -> tuple:
                 logger.debug(f"Updated {dest_field}: {existing_value} -> {new_value}")
 
         elif action == "FLAG":
-            conflicts.append({
-                "field": dest_field,
-                "existing": existing_value,
-                "source": source_value,
-                "action": "NEEDS REVIEW"
-            })
-            logger.warning(f"Conflict on {dest_field}: {existing_value} vs {source_value}")
+            conflicts.append(
+                {
+                    "field": dest_field,
+                    "existing": existing_value,
+                    "source": source_value,
+                    "action": "NEEDS REVIEW",
+                }
+            )
+            logger.warning(
+                f"Conflict on {dest_field}: {existing_value} vs {source_value}"
+            )
 
     # Always update sync timestamp
     merged["last_synced_from_main_system"] = create_date_field(include_time=False)
@@ -195,12 +211,10 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simulate sync without actually updating records"
+        help="Simulate sync without actually updating records",
     )
     parser.add_argument(
-        "--limit",
-        type=int,
-        help="Limit number of records to sync (for testing)"
+        "--limit", type=int, help="Limit number of records to sync (for testing)"
     )
     args = parser.parse_args()
 
@@ -224,8 +238,7 @@ def main():
     logger.info("\n[1/4] Fetching customers from main CRM...")
     try:
         source_records = api.get_all_records(
-            table_id=Config.SOURCE_CUSTOMERS_TABLE_ID,
-            batch_size=100
+            table_id=Config.SOURCE_CUSTOMERS_TABLE_ID, batch_size=100
         )
         logger.info(f"✓ Retrieved {len(source_records)} customers")
     except Exception as e:
@@ -233,15 +246,14 @@ def main():
         return 1
 
     if args.limit:
-        source_records = source_records[:args.limit]
+        source_records = source_records[: args.limit]
         logger.info(f"  Limited to {len(source_records)} records for testing")
 
     # Step 2: Fetch existing records from Intelligence Hub
     logger.info("\n[2/4] Fetching existing records from Intelligence Hub...")
     try:
         existing_records = api.get_all_records(
-            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-            batch_size=100
+            table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID, batch_size=100
         )
         logger.info(f"✓ Retrieved {len(existing_records)} existing records")
     except Exception as e:
@@ -250,7 +262,9 @@ def main():
 
     # Step 3: Match and merge
     logger.info("\n[3/4] Matching and merging records...")
-    logger.info(f"  Matching {len(source_records)} source records against {len(existing_records)} existing...")
+    logger.info(
+        f"  Matching {len(source_records)} source records against {len(existing_records)} existing..."
+    )
 
     updates = []
     conflicts_log = []
@@ -270,14 +284,16 @@ def main():
                 merged_record, conflicts = sync_record(source_record, existing_record)
 
                 if conflicts:
-                    conflicts_log.extend([
-                        {
-                            "company_name": existing_name,
-                            "record_id": existing_record.get("id"),
-                            **conflict
-                        }
-                        for conflict in conflicts
-                    ])
+                    conflicts_log.extend(
+                        [
+                            {
+                                "company_name": existing_name,
+                                "record_id": existing_record.get("id"),
+                                **conflict,
+                            }
+                            for conflict in conflicts
+                        ]
+                    )
 
                 updates.append(merged_record)
                 matched_count += 1
@@ -300,7 +316,9 @@ def main():
             logger.info(f"  Conflicts to review: {len(conflicts_log)}")
             logger.info("\n  Conflicts:")
             for conflict in conflicts_log[:10]:
-                logger.info(f"    {conflict['company_name']}: {conflict['field']} - {conflict['action']}")
+                logger.info(
+                    f"    {conflict['company_name']}: {conflict['field']} - {conflict['action']}"
+                )
             if len(conflicts_log) > 10:
                 logger.info(f"    ... and {len(conflicts_log) - 10} more")
         logger.info("\n✓ Dry run completed successfully")
@@ -317,7 +335,7 @@ def main():
                             table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
                             record_id=record_id,
                             record_data=record,
-                            partial=True  # Use PATCH to avoid overwriting unmapped fields
+                            partial=True,  # Use PATCH to avoid overwriting unmapped fields
                         )
                         updated += 1
                     except Exception as e:
@@ -332,7 +350,9 @@ def main():
 
     # Log conflicts
     if conflicts_log:
-        logger.warning(f"\n⚠ {len(conflicts_log)} conflicts found - review logs/sync_conflicts.log")
+        logger.warning(
+            f"\n⚠ {len(conflicts_log)} conflicts found - review logs/sync_conflicts.log"
+        )
         with open("logs/sync_conflicts.log", "w") as f:
             f.write("SYNC CONFLICTS REPORT\n")
             f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")

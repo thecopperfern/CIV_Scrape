@@ -1,17 +1,31 @@
 const path = require("path");
 const fs = require("fs");
-const crypto = require("crypto");
 const express = require("express");
 const session = require("express-session");
+const SQLiteStore = require("connect-sqlite3")(session);
 const cors = require("cors");
 const dotenv = require("dotenv");
 
-const { enqueueJob, initQueue, listJobs, getJob, getJobOutput } = require("./jobs/queue");
-const { listRecords } = require("./smartsuite");
-
 const ROOT_DIR = path.resolve(__dirname, "..");
-
 dotenv.config({ path: path.join(ROOT_DIR, ".env") });
+
+const { run: runMigrations } = require("./db/migrate");
+runMigrations();
+
+const { enqueueJob, initQueue, listJobs, getJob, getJobOutput, ACTIONS } = require("./jobs/queue");
+const { listRecords } = require("./smartsuite");
+const integrations = require("./integrations/smartsuite");
+
+const authRoutes = require("./auth/routes");
+const apiKeyRoutes = require("./auth/apiKeyRoutes");
+const billingRoutes = require("./billing/routes");
+const billingWebhook = require("./billing/webhook");
+const integrationRoutes = require("./integrations/routes");
+const v1Router = require("./api/v1/router");
+
+const usage = require("./billing/usage");
+const { requireAuth } = require("./middleware/requireAuth");
+const { checkQuota } = require("./middleware/checkQuota");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,11 +37,20 @@ if (IS_DEV) {
   app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 }
 
+app.use("/api/webhooks/stripe", billingWebhook);
+
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+const SESSIONS_DIR = path.join(ROOT_DIR, "data");
+fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
 app.use(
   session({
+    store: new SQLiteStore({
+      db: "sessions.sqlite",
+      dir: SESSIONS_DIR
+    }),
     secret: process.env.SESSION_SECRET || "change-me",
     resave: false,
     saveUninitialized: false,
@@ -35,106 +58,79 @@ app.use(
       httpOnly: true,
       sameSite: "lax",
       secure: !IS_DEV,
-      maxAge: 1000 * 60 * 60 * 12
+      maxAge: 1000 * 60 * 60 * 24 * 14
     }
   })
 );
-
-function safeCompare(a, b) {
-  if (typeof a !== "string" || typeof b !== "string") return false;
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
-}
-
-function requireAuth(req, res, next) {
-  if (req.session?.authed) return next();
-  return res.status(401).json({ success: false, message: "Unauthorized" });
-}
-
-app.post("/api/login", (req, res) => {
-  const { password } = req.body || {};
-  const adminPassword = process.env.ADMIN_PASSWORD;
-
-  if (!adminPassword) {
-    return res.status(500).json({ success: false, message: "ADMIN_PASSWORD not configured" });
-  }
-
-  if (!safeCompare(String(password || ""), adminPassword)) {
-    return res.status(401).json({ success: false, message: "Invalid credentials" });
-  }
-
-  req.session.authed = true;
-  res.json({ success: true, user: "admin" });
-});
-
-app.post("/api/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
-});
-
-app.get("/api/me", (req, res) => {
-  if (req.session?.authed) {
-    return res.json({ authenticated: true, user: "admin" });
-  }
-  return res.json({ authenticated: false });
-});
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.post("/api/jobs", requireAuth, (req, res) => {
-  const { action, params } = req.body || {};
-  if (!action) {
-    return res.status(400).json({ success: false, message: "Action is required" });
-  }
+app.use("/api/auth", authRoutes);
+app.use("/api/api-keys", apiKeyRoutes);
+app.use("/api/billing", billingRoutes);
+app.use("/api/integrations", integrationRoutes);
+app.use("/api/v1", v1Router);
 
-  const job = enqueueJob({ action, params, requestedBy: "admin" });
-  res.json({ success: true, job });
+app.post("/api/jobs", requireAuth, checkQuota, (req, res) => {
+  const { action, params } = req.body || {};
+  if (!action) return res.status(400).json({ error: "action_required" });
+  if (!ACTIONS[action]) return res.status(400).json({ error: "unknown_action" });
+  try {
+    const job = enqueueJob({
+      orgId: req.org.id,
+      userId: req.user.id,
+      action,
+      params: params || {},
+      requestedBy: req.user.email
+    });
+    res.json({ job });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 app.get("/api/jobs", requireAuth, (req, res) => {
   const { status, limit, offset } = req.query;
   const result = listJobs({
+    orgId: req.org.id,
     status: status || undefined,
     limit: limit ? Number(limit) : 50,
     offset: offset ? Number(offset) : 0
   });
-  res.json({ success: true, ...result });
+  res.json(result);
 });
 
 app.get("/api/jobs/:id", requireAuth, (req, res) => {
-  const job = getJob(req.params.id);
-  if (!job) {
-    return res.status(404).json({ success: false, message: "Job not found" });
-  }
-  res.json({ success: true, job });
+  const job = getJob(req.params.id, req.org.id);
+  if (!job) return res.status(404).json({ error: "not_found" });
+  res.json({ job });
 });
 
 app.get("/api/jobs/:id/output", requireAuth, (req, res) => {
-  const output = getJobOutput(req.params.id);
-  if (!output) {
-    return res.status(404).json({ success: false, message: "Output not found" });
-  }
+  const output = getJobOutput(req.params.id, req.org.id);
+  if (output === null) return res.status(404).json({ error: "not_found" });
   res.type("text/plain").send(output);
 });
 
 app.get("/api/records", requireAuth, async (req, res) => {
   try {
     const { table, limit, offset, sortBy, sortDir, filter } = req.query;
-    let parsedFilter = undefined;
+    let parsedFilter;
     if (filter) {
       try {
         parsedFilter = JSON.parse(filter);
-      } catch (err) {
-        return res.status(400).json({ success: false, message: "Invalid filter JSON" });
+      } catch {
+        return res.status(400).json({ error: "invalid_filter_json" });
       }
     }
-
+    const creds = integrations.getOrgSmartSuiteCreds(req.org.id);
+    if (!creds) {
+      return res.status(412).json({ error: "smartsuite_not_configured" });
+    }
     const data = await listRecords({
+      creds,
       tableKey: String(table || ""),
       limit: limit ? Number(limit) : 50,
       offset: offset ? Number(offset) : 0,
@@ -142,11 +138,14 @@ app.get("/api/records", requireAuth, async (req, res) => {
       sortDir: sortDir ? String(sortDir) : undefined,
       filter: parsedFilter
     });
-
-    res.json({ success: true, ...data });
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message || "Failed to load records" });
+    res.status(500).json({ error: error.message || "failed_to_load_records" });
   }
+});
+
+app.get("/api/usage", requireAuth, (req, res) => {
+  res.json(usage.getQuotaState(req.org.id));
 });
 
 const staticPath = path.join(ROOT_DIR, "dist", "public");
@@ -160,5 +159,5 @@ if (fs.existsSync(staticPath)) {
 initQueue();
 
 app.listen(PORT, () => {
-  console.log(`CIV Scrape server running on http://localhost:${PORT}`);
+  console.log(`Prospect Forge server running on http://localhost:${PORT}`);
 });

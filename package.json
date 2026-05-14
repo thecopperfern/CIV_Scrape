@@ -1,13 +1,16 @@
 {
-  "name": "civ-scrape-app",
+  "name": "prospect-forge",
   "private": true,
   "version": "1.0.0",
-  "description": "CIV Scrape web app with React + Node backend",
+  "description": "Prospect Forge — B2B sales prospecting & AI enrichment SaaS",
   "scripts": {
     "dev:web": "vite",
     "dev:server": "node server/index.js",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "db:migrate": "node server/db/migrate.js",
+    "db:seed": "node scripts/seed_admin_org.js",
+    "db:migrate-jobs": "node scripts/migrate_jobs_json.js"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.0.4",
@@ -16,19 +19,26 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@tanstack/react-query": "^5.51.0",
     "axios": "^1.6.8",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "connect-sqlite3": "^0.9.13",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.0",
     "lucide-react": "^0.474.0",
     "nanoid": "^5.0.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "stripe": "^16.0.0",
     "tailwind-merge": "^2.5.2",
-    "wouter": "^3.3.5"
+    "wouter": "^3.3.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

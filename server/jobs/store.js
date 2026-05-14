@@ -1,96 +1,131 @@
 const fs = require("fs");
 const path = require("path");
 const { nanoid } = require("nanoid");
+const { db, prepare } = require("../db");
 
 const ROOT_DIR = path.resolve(__dirname, "..", "..");
-const DATA_DIR = path.join(ROOT_DIR, "data");
-const JOBS_FILE = path.join(DATA_DIR, "jobs.json");
 const LOG_DIR = path.join(ROOT_DIR, "logs", "jobs");
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function ensureStore() {
-  ensureDir(DATA_DIR);
-  if (!fs.existsSync(JOBS_FILE)) {
-    fs.writeFileSync(JOBS_FILE, "[]", "utf8");
-  }
-}
-
 function ensureLogDir() {
   ensureDir(LOG_DIR);
 }
 
-function readJobs() {
-  ensureStore();
+function rowToJob(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    userId: row.user_id,
+    action: row.action,
+    params: safeParse(row.params_json),
+    status: row.status,
+    exitCode: row.exit_code,
+    error: row.error,
+    outputPath: row.output_path,
+    prospectsFound: row.prospects_found,
+    enrichmentsDone: row.enrichments_done,
+    creditsCharged: row.credits_charged,
+    requestedBy: row.requested_by,
+    createdAt: row.created_at,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function safeParse(s) {
   try {
-    const raw = fs.readFileSync(JOBS_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch (err) {
-    return [];
+    return JSON.parse(s || "{}");
+  } catch {
+    return {};
   }
 }
 
-function writeJobs(jobs) {
-  ensureStore();
-  fs.writeFileSync(JOBS_FILE, JSON.stringify(jobs, null, 2), "utf8");
-}
-
-function createJob({ action, params, requestedBy }) {
-  const jobs = readJobs();
-  const job = {
-    id: nanoid(10),
-    action,
-    params: params || {},
-    status: "queued",
-    requestedBy: requestedBy || "admin",
-    createdAt: new Date().toISOString(),
-    startedAt: null,
-    finishedAt: null,
-    exitCode: null,
-    outputPath: null,
-    error: null,
-    updatedAt: new Date().toISOString()
-  };
-
-  jobs.unshift(job);
-  writeJobs(jobs);
-  return job;
+function createJob({ orgId, userId, action, params, requestedBy }) {
+  const id = nanoid(10);
+  const stmt = prepare(
+    `INSERT INTO jobs(id, org_id, user_id, action, params_json, status, requested_by)
+     VALUES (?, ?, ?, ?, ?, 'queued', ?)`
+  );
+  stmt.run(id, orgId, userId || null, action, JSON.stringify(params || {}), requestedBy || null);
+  return getJobInternal(id);
 }
 
 function updateJob(jobId, patch) {
-  const jobs = readJobs();
-  const index = jobs.findIndex((job) => job.id === jobId);
-  if (index === -1) {
-    return null;
+  const allowed = [
+    ["status", "status"],
+    ["exit_code", "exitCode"],
+    ["error", "error"],
+    ["output_path", "outputPath"],
+    ["started_at", "startedAt"],
+    ["finished_at", "finishedAt"],
+    ["prospects_found", "prospectsFound"],
+    ["enrichments_done", "enrichmentsDone"],
+    ["credits_charged", "creditsCharged"]
+  ];
+  const sets = [];
+  const values = [];
+  for (const [col, key] of allowed) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+      sets.push(`${col} = ?`);
+      values.push(patch[key]);
+    }
   }
+  if (sets.length === 0) return getJobInternal(jobId);
+  sets.push("updated_at = datetime('now')");
+  values.push(jobId);
+  prepare(`UPDATE jobs SET ${sets.join(", ")} WHERE id = ?`).run(...values);
+  return getJobInternal(jobId);
+}
 
-  jobs[index] = {
-    ...jobs[index],
-    ...patch,
-    updatedAt: new Date().toISOString()
+function getJobInternal(jobId) {
+  const row = prepare("SELECT * FROM jobs WHERE id = ?").get(jobId);
+  return rowToJob(row);
+}
+
+function getJob(jobId, orgId) {
+  if (orgId == null) return getJobInternal(jobId);
+  const row = prepare("SELECT * FROM jobs WHERE id = ? AND org_id = ?").get(jobId, orgId);
+  return rowToJob(row);
+}
+
+function listJobs({ orgId, status, limit = 50, offset = 0 } = {}) {
+  const where = [];
+  const params = [];
+  if (orgId != null) {
+    where.push("org_id = ?");
+    params.push(orgId);
+  }
+  if (status) {
+    where.push("status = ?");
+    params.push(status);
+  }
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const total = prepare(`SELECT COUNT(*) AS n FROM jobs ${whereSql}`).get(...params).n;
+  const rows = prepare(
+    `SELECT * FROM jobs ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+  ).all(...params, Math.min(limit, 200), offset);
+  return {
+    items: rows.map(rowToJob),
+    total,
+    limit,
+    offset
   };
-
-  writeJobs(jobs);
-  return jobs[index];
 }
 
-function getJob(jobId) {
-  const jobs = readJobs();
-  return jobs.find((job) => job.id === jobId) || null;
+function getQueuedJobIds() {
+  const rows = prepare("SELECT id FROM jobs WHERE status = 'queued' ORDER BY created_at ASC").all();
+  return rows.map((r) => r.id);
 }
 
-function listJobs({ status, limit = 50, offset = 0 } = {}) {
-  const jobs = readJobs();
-  const filtered = status ? jobs.filter((job) => job.status === status) : jobs;
-  const total = filtered.length;
-  const items = filtered.slice(offset, offset + limit);
-  return { items, total, offset, limit };
-}
-
-function getAllJobs() {
-  return readJobs();
+function markRunningJobsFailed(reason) {
+  prepare(
+    "UPDATE jobs SET status = 'failed', error = ?, finished_at = datetime('now'), updated_at = datetime('now') WHERE status = 'running'"
+  ).run(reason);
 }
 
 function getLogPath(jobId) {
@@ -103,7 +138,7 @@ module.exports = {
   updateJob,
   getJob,
   listJobs,
-  getAllJobs,
-  getLogPath,
-  writeJobs
+  getQueuedJobIds,
+  markRunningJobsFailed,
+  getLogPath
 };

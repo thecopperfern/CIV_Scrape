@@ -11,6 +11,7 @@ Examples:
     python scripts/import_customers.py --limit 10
     python scripts/import_customers.py
 """
+
 import argparse
 from datetime import datetime
 from config import Config
@@ -20,6 +21,7 @@ from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
 def parse_args():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(
@@ -28,20 +30,19 @@ def parse_args():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Simulate import without actually creating records"
+        help="Simulate import without actually creating records",
     )
     parser.add_argument(
-        "--limit",
-        type=int,
-        help="Limit number of records to import (for testing)"
+        "--limit", type=int, help="Limit number of records to import (for testing)"
     )
     parser.add_argument(
         "--batch-size",
         type=int,
         default=Config.IMPORT_BATCH_SIZE,
-        help=f"Number of records per batch (default: {Config.IMPORT_BATCH_SIZE})"
+        help=f"Number of records per batch (default: {Config.IMPORT_BATCH_SIZE})",
     )
     return parser.parse_args()
+
 
 def main():
     """Main import logic"""
@@ -68,8 +69,7 @@ def main():
     logger.info("\n[1/4] Fetching existing customers from main CRM...")
     try:
         source_records = api.get_all_records(
-            table_id=Config.SOURCE_CUSTOMERS_TABLE_ID,
-            batch_size=100
+            table_id=Config.SOURCE_CUSTOMERS_TABLE_ID, batch_size=100
         )
         logger.info(f"✓ Retrieved {len(source_records)} customers")
     except Exception as e:
@@ -78,7 +78,7 @@ def main():
 
     # Apply limit if specified
     if args.limit:
-        source_records = source_records[:args.limit]
+        source_records = source_records[: args.limit]
         logger.info(f"  Limited to {len(source_records)} records for testing")
 
     # Step 2: Transform records
@@ -122,7 +122,9 @@ def main():
         logger.info("\n[4/4] DRY RUN - Skipping actual import")
         logger.info("  Would have created the following records:")
         for i, record in enumerate(transformed_records[:5], 1):
-            logger.info(f"    {i}. {record['company_name']} ({record['priority_tier']})")
+            logger.info(
+                f"    {i}. {record['company_name']} ({record['priority_tier']})"
+            )
         if len(transformed_records) > 5:
             logger.info(f"    ... and {len(transformed_records) - 5} more")
         logger.info("\n✓ Dry run completed successfully")
@@ -132,7 +134,7 @@ def main():
     try:
         created_records = api.create_records_batched(
             table_id=Config.DESTINATION_INTELLIGENCE_HUB_TABLE_ID,
-            records=transformed_records
+            records=transformed_records,
         )
         logger.info(f"✓ Successfully created {len(created_records)} records")
     except Exception as e:
@@ -149,6 +151,7 @@ def main():
     logger.info("=" * 70)
 
     return 0
+
 
 if __name__ == "__main__":
     exit(main())

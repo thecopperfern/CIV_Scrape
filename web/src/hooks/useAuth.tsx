@@ -1,60 +1,90 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import * as apiFns from "@/lib/api";
+
+export type Features = {
+  plan: string;
+  prospects: number;
+  enrichments: number;
+  seats: number;
+  api: boolean;
+  rateLimit: number;
+};
+
+export type OrgInfo = {
+  id: number;
+  name: string;
+  slug: string;
+  plan: string;
+  credits: number;
+  role: "owner" | "admin" | "member" | null;
+  features: Features;
+};
+
+export type UserInfo = {
+  id: number;
+  email: string;
+  name: string | null;
+};
 
 type AuthState = {
   authenticated: boolean;
   loading: boolean;
-  login: (password: string) => Promise<boolean>;
+  user: UserInfo | null;
+  org: OrgInfo | null;
+  orgs: OrgInfo[];
+  refresh: () => Promise<unknown>;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (payload: {
+    email: string;
+    password: string;
+    name?: string;
+    orgName?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
+  switchOrg: (orgId: number) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [authenticated, setAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const qc = useQueryClient();
 
-  const checkMe = async () => {
-    try {
-      const res = await fetch("/api/me", { credentials: "include" });
-      const data = await res.json();
-      setAuthenticated(Boolean(data.authenticated));
-    } catch {
-      setAuthenticated(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const meQuery = useQuery({
+    queryKey: ["me"],
+    queryFn: apiFns.getMe,
+    staleTime: 60_000
+  });
 
-  useEffect(() => {
-    checkMe();
-  }, []);
+  const data = meQuery.data as any;
 
-  const login = async (password: string) => {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ password })
-    });
-
-    if (!res.ok) {
-      setAuthenticated(false);
-      return false;
-    }
-
-    const data = await res.json();
-    setAuthenticated(Boolean(data.success));
-    return Boolean(data.success);
-  };
-
-  const logout = async () => {
-    await fetch("/api/logout", { method: "POST", credentials: "include" });
-    setAuthenticated(false);
-  };
-
-  const value = useMemo(
-    () => ({ authenticated, loading, login, logout }),
-    [authenticated, loading]
+  const value = useMemo<AuthState>(
+    () => ({
+      authenticated: Boolean(data?.authenticated),
+      loading: meQuery.isLoading,
+      user: data?.user || null,
+      org: data?.org || null,
+      orgs: data?.orgs || [],
+      refresh: () => qc.invalidateQueries({ queryKey: ["me"] }),
+      login: async (email, password) => {
+        await apiFns.login(email, password);
+        await qc.invalidateQueries({ queryKey: ["me"] });
+      },
+      signup: async (payload) => {
+        await apiFns.signup(payload);
+        await qc.invalidateQueries({ queryKey: ["me"] });
+      },
+      logout: async () => {
+        await apiFns.logout();
+        await qc.invalidateQueries({ queryKey: ["me"] });
+        qc.removeQueries();
+      },
+      switchOrg: async (orgId) => {
+        await apiFns.switchOrg(orgId);
+        await qc.invalidateQueries({ queryKey: ["me"] });
+      }
+    }),
+    [data, meQuery.isLoading, qc]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -62,8 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
