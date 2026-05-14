@@ -339,6 +339,7 @@ def main():
     logger.info(f"  4. Start outreach campaigns")
     logger.info("=" * 70)
 
+    print(f"RESULT_JSON {{\"prospects_found\": {len(deduplicated)}, \"enrichments_done\": 0}}")
     return 0
 
 

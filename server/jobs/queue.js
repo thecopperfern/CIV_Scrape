@@ -1,7 +1,11 @@
 const fs = require("fs");
-const path = require("path");
 const store = require("./store");
 const { runScript } = require("./runner");
+const integrations = require("../integrations/smartsuite");
+const usage = require("../billing/usage");
+const credits = require("../billing/credits");
+const plans = require("../billing/plans");
+const { prepare } = require("../db");
 
 let pendingQueue = [];
 let isRunning = false;
@@ -54,23 +58,84 @@ const ACTIONS = {
   }
 };
 
+function getAction(name) {
+  return ACTIONS[name] || null;
+}
+
 function coerceParams(params) {
   const safe = { ...params };
-  if (safe.limit !== undefined && safe.limit !== "") {
-    safe.limit = Number(safe.limit);
-  }
-  if (safe.radius !== undefined && safe.radius !== "") {
-    safe.radius = Number(safe.radius);
-  }
-  if (safe.batchSize !== undefined && safe.batchSize !== "") {
-    safe.batchSize = Number(safe.batchSize);
-  }
-  if (typeof safe.dryRun === "string") {
-    safe.dryRun = safe.dryRun.toLowerCase() === "true";
-  } else {
-    safe.dryRun = Boolean(safe.dryRun);
-  }
+  if (safe.limit !== undefined && safe.limit !== "") safe.limit = Number(safe.limit);
+  if (safe.radius !== undefined && safe.radius !== "") safe.radius = Number(safe.radius);
+  if (safe.batchSize !== undefined && safe.batchSize !== "") safe.batchSize = Number(safe.batchSize);
+  if (typeof safe.dryRun === "string") safe.dryRun = safe.dryRun.toLowerCase() === "true";
+  else safe.dryRun = Boolean(safe.dryRun);
   return safe;
+}
+
+function buildEnv(orgId) {
+  const env = { PF_ORG_ID: String(orgId) };
+  const creds = integrations.getOrgSmartSuiteCreds(orgId);
+  if (creds) {
+    if (creds.apiKey) env.PF_SMARTSUITE_API_KEY = creds.apiKey;
+    if (creds.accountId) env.PF_SMARTSUITE_ACCOUNT_ID = creds.accountId;
+    if (creds.sourceTableId) env.PF_SOURCE_TABLE_ID = creds.sourceTableId;
+    if (creds.destTableId) env.PF_DEST_TABLE_ID = creds.destTableId;
+  }
+  return env;
+}
+
+async function recordJobOutcome(job, result) {
+  if (!result.result) return;
+
+  const prospectsFound = Math.max(0, Number(result.result.prospects_found) || 0);
+  const enrichmentsDone = Math.max(0, Number(result.result.enrichments_done) || 0);
+
+  const period = new Date().toISOString().slice(0, 7);
+  let creditsCharged = 0;
+
+  if (prospectsFound > 0) {
+    usage.recordUsage({
+      orgId: job.orgId,
+      userId: job.userId,
+      jobId: job.id,
+      kind: "prospect_found",
+      qty: prospectsFound,
+      period
+    });
+  }
+
+  if (enrichmentsDone > 0) {
+    const org = prepare("SELECT * FROM orgs WHERE id = ?").get(job.orgId);
+    const planFeatures = plans.featuresFor(org?.plan || "free");
+    const usedBefore =
+      usage.getMonthlyUsage(job.orgId, period).enrichmentsUsed || 0;
+    const within = Math.max(0, planFeatures.enrichments - usedBefore);
+    const debit = Math.max(0, enrichmentsDone - within);
+
+    usage.recordUsage({
+      orgId: job.orgId,
+      userId: job.userId,
+      jobId: job.id,
+      kind: "enrichment",
+      qty: enrichmentsDone,
+      period
+    });
+
+    if (debit > 0) {
+      try {
+        credits.debitCredits({ orgId: job.orgId, qty: debit, jobId: job.id });
+        creditsCharged = debit;
+      } catch (err) {
+        console.warn(`[queue] credit debit failed for job ${job.id}: ${err.message}`);
+      }
+    }
+  }
+
+  store.updateJob(job.id, {
+    prospectsFound,
+    enrichmentsDone,
+    creditsCharged
+  });
 }
 
 async function processNext() {
@@ -84,7 +149,7 @@ async function processNext() {
     return;
   }
 
-  const actionDef = ACTIONS[job.action];
+  const actionDef = getAction(job.action);
   if (!actionDef) {
     store.updateJob(nextId, {
       status: "failed",
@@ -105,11 +170,17 @@ async function processNext() {
   });
 
   const args = actionDef.buildArgs(coerceParams(job.params));
+  const env = buildEnv(job.orgId);
   const result = await runScript({
     script: actionDef.script,
     args,
-    logPath: outputPath
+    logPath: outputPath,
+    env
   });
+
+  if (result.code === 0) {
+    await recordJobOutcome(job, result);
+  }
 
   store.updateJob(job.id, {
     status: result.code === 0 ? "completed" : "failed",
@@ -122,36 +193,26 @@ async function processNext() {
   processNext();
 }
 
-function enqueueJob({ action, params, requestedBy }) {
-  const job = store.createJob({ action, params, requestedBy });
+function enqueueJob({ orgId, userId, action, params, requestedBy }) {
+  if (!orgId) throw new Error("orgId required");
+  if (!action) throw new Error("action required");
+  if (!getAction(action)) throw new Error(`Unknown action: ${action}`);
+  const job = store.createJob({ orgId, userId, action, params, requestedBy });
   pendingQueue.push(job.id);
-  processNext();
+  setImmediate(processNext);
   return job;
 }
 
 function initQueue() {
-  const jobs = store.getAllJobs();
-  const updated = jobs.map((job) => {
-    if (job.status === "running") {
-      return {
-        ...job,
-        status: "failed",
-        error: "Server restarted before completion",
-        finishedAt: new Date().toISOString()
-      };
-    }
-    return job;
-  });
-
-  store.writeJobs(updated);
-  pendingQueue = updated.filter((job) => job.status === "queued").map((job) => job.id);
+  store.markRunningJobsFailed("Server restarted before completion");
+  pendingQueue = store.getQueuedJobIds();
   if (pendingQueue.length > 0) {
-    processNext();
+    setImmediate(processNext);
   }
 }
 
-function getJobOutput(jobId) {
-  const job = store.getJob(jobId);
+function getJobOutput(jobId, orgId) {
+  const job = store.getJob(jobId, orgId);
   if (!job || !job.outputPath) return null;
   if (!fs.existsSync(job.outputPath)) return null;
   return fs.readFileSync(job.outputPath, "utf8");
@@ -162,5 +223,6 @@ module.exports = {
   initQueue,
   listJobs: store.listJobs,
   getJob: store.getJob,
-  getJobOutput
+  getJobOutput,
+  ACTIONS
 };

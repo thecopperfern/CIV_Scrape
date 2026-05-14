@@ -302,6 +302,7 @@ def main():
     logger.info(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 70)
 
+    print(f"RESULT_JSON {{\"prospects_found\": 0, \"enrichments_done\": {successful}}}")
     return 0 if failed == 0 else 1
 
 

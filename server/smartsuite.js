@@ -2,53 +2,41 @@ const axios = require("axios");
 
 const BASE_URL = process.env.SMARTSUITE_BASE_URL || "https://app.smartsuite.com/api/v1";
 
-function getHeaders() {
-  const apiKey = process.env.SMARTSUITE_API_KEY;
-  const accountId = process.env.SMARTSUITE_ACCOUNT_ID;
-
-  if (!apiKey || !accountId) {
-    throw new Error("Missing SMARTSUITE_API_KEY or SMARTSUITE_ACCOUNT_ID");
+function buildHeaders(creds) {
+  if (!creds || !creds.apiKey || !creds.accountId) {
+    throw new Error("Missing SmartSuite credentials");
   }
-
   return {
-    Authorization: `Token ${apiKey}`,
-    "Account-ID": accountId,
+    Authorization: `Token ${creds.apiKey}`,
+    "Account-ID": creds.accountId,
     "Content-Type": "application/json"
   };
 }
 
-function resolveTableId(tableKey) {
+function resolveTableId(creds, tableKey) {
   if (!tableKey) return null;
-  const normalized = tableKey.toLowerCase();
+  const normalized = String(tableKey).toLowerCase();
   if (normalized === "customers" || normalized === "source") {
-    return process.env.SOURCE_CUSTOMERS_TABLE_ID;
+    return creds.sourceTableId;
   }
   if (normalized === "hub" || normalized === "intelligence") {
-    return process.env.DESTINATION_INTELLIGENCE_HUB_TABLE_ID;
+    return creds.destTableId;
   }
   return null;
 }
 
-async function listRecords({ tableKey, limit = 50, offset = 0, sortBy, sortDir, filter }) {
-  const tableId = resolveTableId(tableKey);
-  if (!tableId) {
-    throw new Error("Invalid table key");
-  }
+async function listRecords({ creds, tableKey, limit = 50, offset = 0, sortBy, sortDir, filter }) {
+  const tableId = resolveTableId(creds, tableKey);
+  if (!tableId) throw new Error("Invalid table key or no table configured");
 
-  const payload = {
-    filter: filter || {},
-    sort: []
-  };
-
-  if (sortBy) {
-    payload.sort.push({ field: sortBy, direction: sortDir || "asc" });
-  }
+  const payload = { filter: filter || {}, sort: [] };
+  if (sortBy) payload.sort.push({ field: sortBy, direction: sortDir || "asc" });
 
   const response = await axios.post(
     `${BASE_URL}/applications/${tableId}/records/list/`,
     payload,
     {
-      headers: getHeaders(),
+      headers: buildHeaders(creds),
       params: {
         limit: Math.min(Number(limit) || 50, 200),
         offset: Number(offset) || 0
@@ -59,6 +47,4 @@ async function listRecords({ tableKey, limit = 50, offset = 0, sortBy, sortDir, 
   return response.data;
 }
 
-module.exports = {
-  listRecords
-};
+module.exports = { listRecords };

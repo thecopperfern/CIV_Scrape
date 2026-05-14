@@ -30,7 +30,11 @@ export default function DataPage() {
       setTotal(data.total || 0);
       setSelected(null);
     } catch (err: any) {
-      setError(err.message || "Failed to load records");
+      if (err?.status === 412) {
+        setError("SmartSuite isn't connected for this workspace. Add credentials in Settings → Integrations.");
+      } else {
+        setError(err.message || "Failed to load records");
+      }
     } finally {
       setLoading(false);
     }
