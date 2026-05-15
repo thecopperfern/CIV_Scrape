@@ -12,13 +12,16 @@ export function QuotaBanner() {
 
   const pProspects = pct(data.prospects.used, data.prospects.limit);
   const pEnrich = pct(data.enrichments.used, data.enrichments.limit);
-  const showUpgrade = data.plan === "free" || pProspects >= 80 || pEnrich >= 80;
+  const emails = (data as any).emails || { used: 0, limit: 0 };
+  const pEmails = pct(emails.used, emails.limit);
+  const showUpgrade = data.plan === "free" || pProspects >= 80 || pEnrich >= 80 || pEmails >= 80;
 
   return (
     <div className="panel px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
-      <div className="flex-1 grid sm:grid-cols-3 gap-3">
+      <div className="flex-1 grid sm:grid-cols-4 gap-3">
         <Bar label="Prospects" used={data.prospects.used} limit={data.prospects.limit} />
         <Bar label="Enrichments" used={data.enrichments.used} limit={data.enrichments.limit} />
+        <Bar label="Emails" used={emails.used} limit={emails.limit} />
         <div>
           <div className="text-xs text-muted-foreground">Credits</div>
           <div className="font-heading text-lg">{data.credits}</div>
@@ -37,19 +40,17 @@ export function QuotaBanner() {
 
 function Bar({ label, used, limit }: { label: string; used: number; limit: number }) {
   const p = pct(used, limit);
+  const limitLabel = limit === 0 && label === "Emails" ? "BYO" : limit;
   return (
     <div>
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>{label}</span>
         <span>
-          {used} / {limit}
+          {used} / {limitLabel}
         </span>
       </div>
       <div className="h-1.5 mt-1 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: `${p}%` }}
-        />
+        <div className="h-full bg-primary transition-all" style={{ width: `${p}%` }} />
       </div>
     </div>
   );

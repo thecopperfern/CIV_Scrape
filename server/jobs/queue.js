@@ -1,6 +1,7 @@
 const fs = require("fs");
 const store = require("./store");
 const { runScript } = require("./runner");
+const { NODE_ACTIONS } = require("./nodeActions");
 const integrations = require("../integrations/smartsuite");
 const usage = require("../billing/usage");
 const credits = require("../billing/credits");
@@ -60,6 +61,14 @@ const ACTIONS = {
 
 function getAction(name) {
   return ACTIONS[name] || null;
+}
+
+function isNodeAction(name) {
+  return Boolean(NODE_ACTIONS[name]);
+}
+
+function actionKnown(name) {
+  return Boolean(getAction(name) || isNodeAction(name));
 }
 
 function coerceParams(params) {
@@ -150,7 +159,8 @@ async function processNext() {
   }
 
   const actionDef = getAction(job.action);
-  if (!actionDef) {
+  const nodeAction = NODE_ACTIONS[job.action];
+  if (!actionDef && !nodeAction) {
     store.updateJob(nextId, {
       status: "failed",
       finishedAt: new Date().toISOString(),
@@ -169,14 +179,23 @@ async function processNext() {
     outputPath
   });
 
-  const args = actionDef.buildArgs(coerceParams(job.params));
-  const env = buildEnv(job.orgId);
-  const result = await runScript({
-    script: actionDef.script,
-    args,
-    logPath: outputPath,
-    env
-  });
+  let result;
+  if (nodeAction) {
+    result = await nodeAction({
+      orgId: job.orgId,
+      params: coerceParams(job.params),
+      logPath: outputPath
+    });
+  } else {
+    const args = actionDef.buildArgs(coerceParams(job.params));
+    const env = buildEnv(job.orgId);
+    result = await runScript({
+      script: actionDef.script,
+      args,
+      logPath: outputPath,
+      env
+    });
+  }
 
   if (result.code === 0) {
     await recordJobOutcome(job, result);
@@ -196,7 +215,7 @@ async function processNext() {
 function enqueueJob({ orgId, userId, action, params, requestedBy }) {
   if (!orgId) throw new Error("orgId required");
   if (!action) throw new Error("action required");
-  if (!getAction(action)) throw new Error(`Unknown action: ${action}`);
+  if (!actionKnown(action)) throw new Error(`Unknown action: ${action}`);
   const job = store.createJob({ orgId, userId, action, params, requestedBy });
   pendingQueue.push(job.id);
   setImmediate(processNext);
@@ -224,5 +243,7 @@ module.exports = {
   listJobs: store.listJobs,
   getJob: store.getJob,
   getJobOutput,
-  ACTIONS
+  ACTIONS,
+  NODE_ACTIONS,
+  actionKnown
 };

@@ -21,10 +21,13 @@ function getMonthlyUsage(orgId, period) {
      WHERE org_id = ? AND period = ?
      GROUP BY kind`
   ).all(orgId, p);
-  const out = { prospectsUsed: 0, enrichmentsUsed: 0 };
+  const out = { prospectsUsed: 0, enrichmentsUsed: 0, emailsUsed: 0, smsUsed: 0, callsLogged: 0 };
   for (const r of rows) {
     if (r.kind === "prospect_found") out.prospectsUsed = r.total;
     if (r.kind === "enrichment") out.enrichmentsUsed = r.total;
+    if (r.kind === "email_sent") out.emailsUsed = r.total;
+    if (r.kind === "sms_sent") out.smsUsed = r.total;
+    if (r.kind === "call_logged") out.callsLogged = r.total;
   }
   return out;
 }
@@ -39,9 +42,14 @@ function getQuotaState(orgId) {
     period: currentPeriod(),
     prospects: { used: used.prospectsUsed, limit: features.prospects },
     enrichments: { used: used.enrichmentsUsed, limit: features.enrichments },
+    emails: { used: used.emailsUsed, limit: features.emails },
+    sms: { used: used.smsUsed, limit: -1 },
+    calls: { used: used.callsLogged, limit: -1 },
     credits: org.credits_balance,
     seats: features.seats,
-    api: features.api
+    api: features.api,
+    platformEmail: features.platformEmail,
+    platformSms: features.platformSms
   };
 }
 
