@@ -7,15 +7,15 @@ class InsufficientCredits extends Error {
   }
 }
 
-const debit = tx(({ orgId, qty, jobId, stripeEventId }) => {
+const debit = tx(({ orgId, qty, jobId, stripeEventId, reason }) => {
   const row = prepare(
     "UPDATE orgs SET credits_balance = credits_balance - ? WHERE id = ? AND credits_balance >= ? RETURNING credits_balance"
   ).get(qty, orgId, qty);
   if (!row) throw new InsufficientCredits();
   prepare(
     `INSERT INTO credit_ledger(org_id, delta, reason, job_id, stripe_event_id, balance_after)
-     VALUES (?, ?, 'enrichment', ?, ?, ?)`
-  ).run(orgId, -qty, jobId || null, stripeEventId || null, row.credits_balance);
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(orgId, -qty, reason || "enrichment", jobId || null, stripeEventId || null, row.credits_balance);
   return row.credits_balance;
 });
 
@@ -31,9 +31,9 @@ const credit = tx(({ orgId, qty, reason, stripeEventId, jobId }) => {
   return row.credits_balance;
 });
 
-function debitCredits({ orgId, qty, jobId, stripeEventId }) {
+function debitCredits({ orgId, qty, jobId, stripeEventId, reason }) {
   if (!qty || qty <= 0) return null;
-  return debit({ orgId, qty, jobId, stripeEventId });
+  return debit({ orgId, qty, jobId, stripeEventId, reason });
 }
 
 function addCredits({ orgId, qty, reason, stripeEventId, jobId }) {

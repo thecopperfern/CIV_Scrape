@@ -9,7 +9,9 @@ import {
   Key,
   Plug,
   Activity,
-  Users
+  Users,
+  Send,
+  FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 const primaryNav = [
   { href: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/app/campaigns", label: "Campaigns", icon: Send },
+  { href: "/app/templates", label: "Templates", icon: FileText },
   { href: "/app/jobs", label: "Job History", icon: ListChecks },
   { href: "/app/data", label: "Data Explorer", icon: Database }
 ];

@@ -13,6 +13,10 @@ import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 import DashboardPage from "@/pages/DashboardPage";
 import JobsPage from "@/pages/JobsPage";
 import DataPage from "@/pages/DataPage";
+import CampaignsPage from "@/pages/app/CampaignsPage";
+import CampaignDetailPage from "@/pages/app/CampaignDetailPage";
+import NewCampaignPage from "@/pages/app/NewCampaignPage";
+import TemplatesPage from "@/pages/app/TemplatesPage";
 
 import BillingPage from "@/pages/settings/BillingPage";
 import UsagePage from "@/pages/settings/UsagePage";
@@ -47,6 +51,10 @@ function AuthedRoutes() {
     <AppShell>
       <Switch>
         <Route path="/app" component={DashboardPage} />
+        <Route path="/app/campaigns/new" component={NewCampaignPage} />
+        <Route path="/app/campaigns/:id" component={CampaignDetailPage} />
+        <Route path="/app/campaigns" component={CampaignsPage} />
+        <Route path="/app/templates" component={TemplatesPage} />
         <Route path="/app/jobs" component={JobsPage} />
         <Route path="/app/data" component={DataPage} />
         <Route path="/app/settings/billing" component={BillingPage} />

@@ -165,3 +165,187 @@ export async function testIntegration() {
   const { data } = await api.post("/integrations/smartsuite/test");
   return data;
 }
+
+// ---------- Resend / Twilio integrations ----------
+
+export async function getResendStatus() {
+  const { data } = await api.get("/integrations/resend");
+  return data;
+}
+export async function updateResend(payload: { apiKey: string; fromEmail?: string; fromName?: string }) {
+  const { data } = await api.put("/integrations/resend", payload);
+  return data;
+}
+export async function deleteResend() {
+  await api.delete("/integrations/resend");
+}
+export async function testResend() {
+  const { data } = await api.post("/integrations/resend/test");
+  return data;
+}
+
+export async function getTwilioStatus() {
+  const { data } = await api.get("/integrations/twilio");
+  return data;
+}
+export async function updateTwilio(payload: { accountSid: string; authToken: string; fromNumber: string }) {
+  const { data } = await api.put("/integrations/twilio", payload);
+  return data;
+}
+export async function deleteTwilio() {
+  await api.delete("/integrations/twilio");
+}
+export async function testTwilio() {
+  const { data } = await api.post("/integrations/twilio/test");
+  return data;
+}
+
+// ---------- Templates ----------
+
+export type Template = {
+  id: number;
+  name: string;
+  channel: "email" | "sms";
+  subject: string | null;
+  body: string;
+  variantLabel: string | null;
+  archivedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export async function listTemplates(opts: { channel?: "email" | "sms" } = {}) {
+  const { data } = await api.get("/templates", { params: opts });
+  return data as { items: Template[] };
+}
+export async function getTemplate(id: number) {
+  const { data } = await api.get(`/templates/${id}`);
+  return data as { template: Template };
+}
+export async function createTemplate(payload: Partial<Template>) {
+  const { data } = await api.post("/templates", payload);
+  return data as { template: Template };
+}
+export async function updateTemplate(id: number, payload: Partial<Template>) {
+  const { data } = await api.put(`/templates/${id}`, payload);
+  return data as { template: Template };
+}
+export async function deleteTemplate(id: number) {
+  await api.delete(`/templates/${id}`);
+}
+export async function previewTemplate(id: number, target?: Record<string, any>) {
+  const { data } = await api.post(`/templates/${id}/preview`, { target });
+  return data as { rendered: { subject?: string; html?: string; text?: string; body?: string } };
+}
+
+// ---------- Campaigns ----------
+
+export type CampaignStatus = "draft" | "active" | "paused" | "done" | "archived";
+
+export type Campaign = {
+  id: number;
+  name: string;
+  status: CampaignStatus;
+  fromName: string | null;
+  fromEmail: string | null;
+  replyToEmail: string | null;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  stats: { targets: number; sent: number; delivered: number; opened: number; replied: number; bounced: number };
+};
+
+export type CampaignStep = {
+  id: number;
+  campaignId: number;
+  stepOrder: number;
+  channel: "email" | "sms" | "call";
+  dayOffset: number;
+  templateIds: number[];
+  sendWindowStart: string | null;
+  sendWindowEnd: string | null;
+  sendWindowTz: string | null;
+  sendOnWeekdaysOnly: boolean;
+};
+
+export async function listCampaigns(opts: { status?: CampaignStatus; limit?: number; offset?: number } = {}) {
+  const { data } = await api.get("/campaigns", { params: opts });
+  return data as { items: Campaign[]; total: number };
+}
+export async function getCampaign(id: number) {
+  const { data } = await api.get(`/campaigns/${id}`);
+  return data as { campaign: Campaign; steps: CampaignStep[] };
+}
+export async function createCampaign(payload: { name: string; fromName?: string; fromEmail?: string; replyToEmail?: string }) {
+  const { data } = await api.post("/campaigns", payload);
+  return data as { campaign: Campaign };
+}
+export async function updateCampaign(id: number, payload: Partial<Campaign>) {
+  const { data } = await api.put(`/campaigns/${id}`, payload);
+  return data as { campaign: Campaign };
+}
+export async function setCampaignSteps(id: number, steps: Array<Partial<CampaignStep>>) {
+  const { data } = await api.post(`/campaigns/${id}/steps`, { steps });
+  return data;
+}
+export async function listCampaignTargets(id: number, opts: { status?: string; limit?: number; offset?: number } = {}) {
+  const { data } = await api.get(`/campaigns/${id}/targets`, { params: opts });
+  return data;
+}
+export async function importCampaignTargets(id: number, targets: Array<Record<string, any>>) {
+  const { data } = await api.post(`/campaigns/${id}/targets/import`, { targets });
+  return data;
+}
+export async function startCampaign(id: number) {
+  const { data } = await api.post(`/campaigns/${id}/start`);
+  return data;
+}
+export async function pauseCampaign(id: number) {
+  const { data } = await api.post(`/campaigns/${id}/pause`);
+  return data;
+}
+export async function resumeCampaign(id: number) {
+  const { data } = await api.post(`/campaigns/${id}/resume`);
+  return data;
+}
+export async function sendTestEmail(campaignId: number, payload: { to: string; templateId: number; sample?: Record<string, any> }) {
+  const { data } = await api.post(`/campaigns/${campaignId}/send-test`, payload);
+  return data;
+}
+export async function listCampaignEvents(id: number, limit = 100) {
+  const { data } = await api.get(`/campaigns/${id}/events`, { params: { limit } });
+  return data;
+}
+
+// ---------- Call logs ----------
+
+export type CallLog = {
+  id: number;
+  org_id: number;
+  user_id: number | null;
+  target_id: number | null;
+  external_id: string | null;
+  outcome: string;
+  duration_seconds: number | null;
+  notes: string | null;
+  follow_up_at: string | null;
+  created_at: string;
+};
+
+export async function listCalls(opts: { targetId?: number; outcome?: string; limit?: number; offset?: number } = {}) {
+  const { data } = await api.get("/calls", { params: opts });
+  return data as { items: CallLog[]; total: number };
+}
+export async function createCall(payload: {
+  targetId?: number;
+  externalId?: string;
+  outcome: string;
+  durationSeconds?: number;
+  notes?: string;
+  followUpAt?: string;
+}) {
+  const { data } = await api.post("/calls", payload);
+  return data as { call: CallLog };
+}
+

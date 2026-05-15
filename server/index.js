@@ -12,7 +12,7 @@ dotenv.config({ path: path.join(ROOT_DIR, ".env") });
 const { run: runMigrations } = require("./db/migrate");
 runMigrations();
 
-const { enqueueJob, initQueue, listJobs, getJob, getJobOutput, ACTIONS } = require("./jobs/queue");
+const { enqueueJob, initQueue, listJobs, getJob, getJobOutput, ACTIONS, actionKnown } = require("./jobs/queue");
 const { listRecords } = require("./smartsuite");
 const integrations = require("./integrations/smartsuite");
 
@@ -22,6 +22,13 @@ const billingRoutes = require("./billing/routes");
 const billingWebhook = require("./billing/webhook");
 const integrationRoutes = require("./integrations/routes");
 const v1Router = require("./api/v1/router");
+const templatesRoutes = require("./outreach/templatesRoutes");
+const campaignsRoutes = require("./outreach/campaignsRoutes");
+const callsRoutes = require("./outreach/callsRoutes");
+const resendWebhook = require("./outreach/resendWebhook");
+const twilioWebhook = require("./outreach/twilioWebhook");
+const unsubscribeRoutes = require("./outreach/unsubscribeRoutes");
+const outreachScheduler = require("./outreach/scheduler");
 
 const usage = require("./billing/usage");
 const { requireAuth } = require("./middleware/requireAuth");
@@ -38,6 +45,8 @@ if (IS_DEV) {
 }
 
 app.use("/api/webhooks/stripe", billingWebhook);
+app.use("/api/webhooks/resend", resendWebhook);
+app.use("/api/webhooks/twilio", twilioWebhook);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -71,12 +80,16 @@ app.use("/api/auth", authRoutes);
 app.use("/api/api-keys", apiKeyRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/integrations", integrationRoutes);
+app.use("/api/templates", templatesRoutes);
+app.use("/api/campaigns", campaignsRoutes);
+app.use("/api/calls", callsRoutes);
+app.use("/u", unsubscribeRoutes);
 app.use("/api/v1", v1Router);
 
 app.post("/api/jobs", requireAuth, checkQuota, (req, res) => {
   const { action, params } = req.body || {};
   if (!action) return res.status(400).json({ error: "action_required" });
-  if (!ACTIONS[action]) return res.status(400).json({ error: "unknown_action" });
+  if (!actionKnown(action)) return res.status(400).json({ error: "unknown_action" });
   try {
     const job = enqueueJob({
       orgId: req.org.id,
@@ -157,6 +170,7 @@ if (fs.existsSync(staticPath)) {
 }
 
 initQueue();
+outreachScheduler.start();
 
 app.listen(PORT, () => {
   console.log(`Prospect Forge server running on http://localhost:${PORT}`);
